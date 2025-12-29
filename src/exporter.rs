@@ -7,8 +7,16 @@ const PX_TO_MM: f32 = 0.264583;
 
 /// Export SVG content to PNG format
 pub fn export_png(svg_content: &str, output_path: &Path) -> Result<()> {
+    // Create font database and load system fonts
+    let mut fontdb = usvg::fontdb::Database::new();
+    fontdb.load_system_fonts();
+    
+    // Configure options with font database
+    let mut options = usvg::Options::default();
+    options.fontdb = std::sync::Arc::new(fontdb);
+    
     // Parse SVG
-    let tree = usvg::Tree::from_str(svg_content, &usvg::Options::default())
+    let tree = usvg::Tree::from_str(svg_content, &options)
         .context("Failed to parse SVG")?;
 
     // Get SVG dimensions
@@ -34,8 +42,16 @@ pub fn export_png(svg_content: &str, output_path: &Path) -> Result<()> {
 pub fn export_pdf(svg_content: &str, output_path: &Path) -> Result<()> {
     use printpdf::*;
 
+    // Create font database and load system fonts
+    let mut fontdb = usvg::fontdb::Database::new();
+    fontdb.load_system_fonts();
+    
+    // Configure options with font database
+    let mut options = usvg::Options::default();
+    options.fontdb = std::sync::Arc::new(fontdb);
+    
     // Parse SVG to get dimensions
-    let tree = usvg::Tree::from_str(svg_content, &usvg::Options::default())
+    let tree = usvg::Tree::from_str(svg_content, &options)
         .context("Failed to parse SVG")?;
 
     let size = tree.size();

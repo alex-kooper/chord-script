@@ -9,6 +9,7 @@ const MARGIN: f32 = 40.0;
 const MEASURE_WIDTH: f32 = 180.0;
 const MEASURE_HEIGHT: f32 = 100.0;
 const MEASURES_PER_ROW: usize = 4;
+const FONT_FAMILY: &str = "DejaVu Sans, Liberation Sans, sans-serif";
 
 pub fn render_to_svg(chart: &Chart) -> Result<String> {
     let mut document = Document::new()
@@ -32,7 +33,7 @@ pub fn render_to_svg(chart: &Chart) -> Result<String> {
         .set("text-anchor", "middle")
         .set("font-size", 28)
         .set("font-weight", "bold")
-        .set("font-family", "Arial, sans-serif");
+        .set("font-family", FONT_FAMILY);
     document = document.add(title_text);
     y_offset += 40.0;
 
@@ -43,7 +44,7 @@ pub fn render_to_svg(chart: &Chart) -> Result<String> {
             .set("y", y_offset)
             .set("text-anchor", "middle")
             .set("font-size", 16)
-            .set("font-family", "Arial, sans-serif");
+            .set("font-family", FONT_FAMILY);
         document = document.add(composer_text);
         y_offset += 25.0;
     }
@@ -62,7 +63,7 @@ pub fn render_to_svg(chart: &Chart) -> Result<String> {
             .set("y", y_offset)
             .set("text-anchor", "middle")
             .set("font-size", 14)
-            .set("font-family", "Arial, sans-serif");
+            .set("font-family", FONT_FAMILY);
         document = document.add(meta_text);
         y_offset += 35.0;
     }
@@ -86,7 +87,7 @@ fn render_section(section: &Section, y_offset: &mut f32) -> Group {
         .set("y", *y_offset)
         .set("font-size", 18)
         .set("font-weight", "bold")
-        .set("font-family", "Arial, sans-serif");
+        .set("font-family", FONT_FAMILY);
     group = group.add(section_text);
     *y_offset += 30.0;
 
@@ -141,7 +142,7 @@ fn render_measure(measure: &Measure, x: f32, y: f32) -> Group {
             .set("text-anchor", "middle")
             .set("dominant-baseline", "middle")
             .set("font-size", 24)
-            .set("font-family", "Arial, sans-serif")
+            .set("font-family", FONT_FAMILY)
             .set("fill", "#999");
         group = group.add(placeholder);
         return group;
@@ -226,7 +227,7 @@ fn render_measure(measure: &Measure, x: f32, y: f32) -> Group {
                     .set("dominant-baseline", "middle")
                     .set("font-size", font_size)
                     .set("font-weight", "bold")
-                    .set("font-family", "Arial, sans-serif");
+                    .set("font-family", FONT_FAMILY);
                 group = group.add(chord_text);
             }
         }
@@ -243,5 +244,5 @@ fn render_chord_text(chord: &Chord, x: f32, y: f32) -> Text {
         .set("dominant-baseline", "middle")
         .set("font-size", 20)
         .set("font-weight", "bold")
-        .set("font-family", "Arial, sans-serif")
+        .set("font-family", FONT_FAMILY)
 }
