@@ -1,0 +1,21 @@
+[package]
+name = "clean-chart"
+version = "0.1.0"
+edition = "2021"
+authors = ["Clean Chart Contributors"]
+description = "A CLI for clean, chord-first charts focused on form and structure"
+
+[[bin]]
+name = "clean-chart"
+path = "src/main.rs"
+
+[dependencies]
+clap = { version = "4.5", features = ["derive"] }
+svg = "0.17"
+anyhow = "1.0"
+thiserror = "1.0"
+resvg = "0.44"
+usvg = "0.44"
+tiny-skia = "0.11"
+printpdf = { version = "0.7", features = ["embedded_images"] }
+image = "0.24"
