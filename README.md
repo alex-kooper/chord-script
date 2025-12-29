@@ -95,8 +95,11 @@ Measures are separated by `|` (pipe) characters. Each measure can contain:
 - **One chord** (whole measure): `| Cmaj7 |`
 - **Two chords** (half notes each): `| Cmaj7 Dm7 |`
 - **Four chords** (quarter notes each): `| C Dm Em F |`
-- **Repeat previous measure**: `| - |`
-- **Empty measure**: `| |` or `| % |`
+- **Many chords** (stacked vertically): `| C D E F G A B |`
+- **Repeat previous measure**: `| - |` (Note: currently rendered as empty placeholder)
+- **Empty measure**: `| |` (rendered with "/" placeholder)
+
+**Note**: Repeat symbols (`-` and `%`) are parsed but not yet fully implemented - they will appear as empty measures with a "/" placeholder.
 
 ### Chord Notation
 

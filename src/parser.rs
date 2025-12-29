@@ -107,7 +107,9 @@ fn parse_measure_line(line: &str) -> Result<Vec<Measure>> {
 
         for chord_str in chord_strs {
             if chord_str == "-" || chord_str == "%" {
-                // Repeat or rest - skip for now
+                // Note: Repeat symbols ("-" and "%") are currently skipped.
+                // This is a known limitation - they are not yet implemented.
+                // Empty measures will be rendered with a "/" placeholder.
                 continue;
             }
             

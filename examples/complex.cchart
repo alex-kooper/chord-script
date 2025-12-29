@@ -1,0 +1,9 @@
+Title: Test Complex Measures
+Key: C
+Time: 4/4
+
+[Test]
+| C D E F G A B C |
+| C |
+| C D |
+| C D E F |

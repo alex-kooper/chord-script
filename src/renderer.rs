@@ -134,6 +134,16 @@ fn render_measure(measure: &Measure, x: f32, y: f32) -> Group {
     // Render chords in the measure
     let chord_count = measure.chords.len();
     if chord_count == 0 {
+        // Empty measure - render a slash or placeholder
+        let placeholder = Text::new("/")
+            .set("x", x + MEASURE_WIDTH / 2.0)
+            .set("y", y + MEASURE_HEIGHT / 2.0)
+            .set("text-anchor", "middle")
+            .set("dominant-baseline", "middle")
+            .set("font-size", 24)
+            .set("font-family", "Arial, sans-serif")
+            .set("fill", "#999");
+        group = group.add(placeholder);
         return group;
     }
 
@@ -203,10 +213,22 @@ fn render_measure(measure: &Measure, x: f32, y: f32) -> Group {
             group = group.add(v_line);
         }
         _ => {
-            // More than 4 chords - just center the first one
-            let chord = &measure.chords[0];
-            let chord_text = render_chord_text(chord, x + MEASURE_WIDTH / 2.0, y + MEASURE_HEIGHT / 2.0);
-            group = group.add(chord_text);
+            // More than 4 chords - display them in a compact format stacked vertically
+            let font_size = if chord_count > 6 { 14 } else { 16 };
+            let line_height = MEASURE_HEIGHT / (chord_count as f32 + 1.0);
+            
+            for (i, chord) in measure.chords.iter().enumerate() {
+                let chord_y = y + line_height * (i as f32 + 1.0);
+                let chord_text = Text::new(&chord.full_name())
+                    .set("x", x + MEASURE_WIDTH / 2.0)
+                    .set("y", chord_y)
+                    .set("text-anchor", "middle")
+                    .set("dominant-baseline", "middle")
+                    .set("font-size", font_size)
+                    .set("font-weight", "bold")
+                    .set("font-family", "Arial, sans-serif");
+                group = group.add(chord_text);
+            }
         }
     }
 

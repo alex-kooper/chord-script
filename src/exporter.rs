@@ -2,6 +2,9 @@ use anyhow::{Context, Result};
 use std::path::Path;
 use image::{RgbaImage, DynamicImage};
 
+// Conversion factor from pixels to millimeters (96 DPI standard)
+const PX_TO_MM: f32 = 0.264583;
+
 /// Export SVG content to PNG format
 pub fn export_png(svg_content: &str, output_path: &Path) -> Result<()> {
     // Parse SVG
@@ -36,8 +39,8 @@ pub fn export_pdf(svg_content: &str, output_path: &Path) -> Result<()> {
         .context("Failed to parse SVG")?;
 
     let size = tree.size();
-    let width_mm = (size.width() * 0.264583) as f32; // Convert pixels to mm
-    let height_mm = (size.height() * 0.264583) as f32;
+    let width_mm = (size.width() * PX_TO_MM) as f32;
+    let height_mm = (size.height() * PX_TO_MM) as f32;
 
     // Create PDF document
     let (doc, page1, layer1) = PdfDocument::new(
