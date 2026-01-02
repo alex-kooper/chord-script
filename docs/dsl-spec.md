@@ -1,4 +1,4 @@
-# Clean Chart DSL Specification
+# Chord Script DSL Specification
 
 **Status:** Draft v0.1  
 **Date:** December 29, 2025
@@ -7,7 +7,7 @@
 
 ## Overview
 
-Clean Chart uses a custom plain-text DSL (`.cchart` files) for defining music charts. The format is inspired by [chordsheet.com](https://chordsheet.com) but adds Markdown-like text formatting with flexible alignment.
+Chord Script uses a custom plain-text DSL (`.cchart` files) for defining music charts. The format is inspired by [chordsheet.com](https://chordsheet.com) but adds Markdown-like text formatting with flexible alignment.
 
 ### Design Goals
 
