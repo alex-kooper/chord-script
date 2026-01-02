@@ -1,4 +1,4 @@
-# Copilot Instructions for clean-chart
+# Copilot Instructions for chord-script
 
 ## Project Overview
 A Rust CLI for generating clean, chord-first music charts focused on form and structure.
@@ -96,3 +96,4 @@ examples/            # Sample .cchart files demonstrating DSL syntax
 - When adding features, create small focused modules
 - Write unit tests alongside new functionality
 - Keep the CLI interface simple and Unix-philosophy friendly
+- Do not add any features or do any work until explicitly instructed to do so.
