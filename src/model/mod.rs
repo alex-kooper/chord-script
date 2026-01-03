@@ -1,0 +1,59 @@
+// Model module for chord-script domain types
+
+/// Text styling options for span of text
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TextStyle {
+    /// Normal, unstyled text
+    Normal,
+    /// Bold text
+    Bold,
+    /// Italic text
+    Italic,
+    /// Bold and italic text
+    BoldItalic,
+}
+
+/// A styled span of text
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TextSpan {
+    pub text: String,
+    pub style: TextStyle,
+}
+
+impl TextSpan {
+    pub fn new(text: impl Into<String>, style: TextStyle) -> Self {
+        Self {
+            text: text.into(),
+            style,
+        }
+    }
+
+    pub fn plain(text: impl Into<String>) -> Self {
+        Self {
+            text: text.into(),
+            style: TextStyle::Normal,
+        }
+    }
+}
+
+/// Line level in the hierarchy
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LineLevel {
+    /// Header level 1 (major section)
+    Header1,
+    /// Header level 2 (subsection)
+    Header2,
+    /// Header level 3 (detail)
+    Header3,
+    /// Text line (stage directions, comments)
+    Text,
+}
+
+/// A line in a chart with three-column layout (left, center, right aligned)
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Line {
+    pub level: LineLevel,
+    pub left: Vec<TextSpan>,
+    pub center: Vec<TextSpan>,
+    pub right: Vec<TextSpan>,
+}

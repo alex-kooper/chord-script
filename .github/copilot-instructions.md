@@ -72,4 +72,4 @@ Each layer is independent:
 - When adding features, create small focused modules
 - Write unit tests alongside new functionality
 - Keep the CLI interface simple and Unix-philosophy friendly
-- Do not add any features or do any work until explicitly instructed to do so.
+- Do not add anything without approval
