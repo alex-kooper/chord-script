@@ -7,6 +7,8 @@ fn main() {
         ("Unclosed bold", "=== **Unclosed bold marker"),
         ("Unclosed bold-italic", "=== ***Unclosed bold-italic marker"),
         ("No level marker", "This line has no level marker"),
+        ("Right and left columns without center", "-Left column >right column"),
+        ("Center without left", "= <>Center only"),
     ];
 
     for (description, input) in invalid_inputs {
