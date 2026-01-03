@@ -1,5 +1,6 @@
 use chumsky::prelude::*;
 use crate::model::{Line, LineLevel, TextSpan, TextStyle};
+use ariadne::{Report, ReportKind, Label, Source};
 
 /// Parse a complete chart from input text
 pub fn parse_chart(input: &str) -> Result<Vec<Line>, Vec<String>> {
@@ -8,7 +9,19 @@ pub fn parse_chart(input: &str) -> Result<Vec<Line>, Vec<String>> {
         .map_err(|errors| {
             errors
                 .into_iter()
-                .map(|e| e.to_string())
+                .map(|e| {
+                    let mut output = Vec::new();
+                    Report::build(ReportKind::Error, (), e.span().start)
+                        .with_message("Parse error")
+                        .with_label(
+                            Label::new(e.span())
+                                .with_message(e.to_string())
+                        )
+                        .finish()
+                        .write(Source::from(input), &mut output)
+                        .unwrap();
+                    String::from_utf8(output).unwrap()
+                })
                 .collect()
         })
 }
@@ -175,5 +188,17 @@ mod tests {
         // Text
         assert_eq!(lines[3].level, LineLevel::Text);
         assert_eq!(lines[3].left[0].text, "Piano only");
+    }
+
+    #[test]
+    fn test_parse_invalid_input_returns_error() {
+        // Test input with mismatched italic markers
+        let invalid_input = "=== *Unclosed italic marker";
+        
+        let result = parse_chart(invalid_input);
+        assert!(result.is_err(), "Expected parser to return an error for unclosed italic marker");
+        
+        let errors = result.unwrap_err();
+        assert!(!errors.is_empty(), "Expected at least one error message");
     }
 }
