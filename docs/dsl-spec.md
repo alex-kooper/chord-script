@@ -29,6 +29,7 @@ Text lines start with `=` characters. The number of `=` determines the weight (s
 | `===` | H1 (largest) | Song title |
 | `==` | H2 (medium) | Artist, subtitle |
 | `=` | H3 (smallest) | Section names, annotations |
+| '-' | Comments, annotations
 
 ### Alignment (Inline Markers)
 
@@ -36,22 +37,20 @@ Alignment markers appear **after** the weight prefix, **before** the text conten
 
 | Syntax | Alignment |
 |--------|-----------|
-| `<<text` | Left |
-| `>>text` | Right |
-| `<<>>text` | Center |
+| `<text` | Left |
+| `>text` | Right |
+| `<>text` | Center |
 | `text` (no marker) | Left (default) |
-
-**Why double characters?** Single `<` and `>` appear in chord notation (push, accent, dynamics). Using `<<`, `>>`, `<<>>` avoids conflicts and reduces escaping needs.
 
 ### Examples
 
 ```
-=== <<>>Rolling in the Deep     (H1, centered)
-== <<>>Adele                    (H2, centered)
-= <<>>2011 • *21*               (H3, centered)
+=== <>Rolling in the Deep     (H1, centered)
+== <>Adele                    (H2, centered)
+= <>2011 • *21*               (H3, centered)
 
 = Verse 1                       (H3, left - default)
-= >>page 1 of 2                 (H3, right)
+= >page 1 of 2                 (H3, right)
 ```
 
 ### Multi-Zone Lines
@@ -59,7 +58,7 @@ Alignment markers appear **after** the weight prefix, **before** the text conten
 A single line can have multiple alignment zones:
 
 ```
-= <<Left Text <<>>Centered >>Right
+= <Left Text <>Centered >Right
 ```
 
 Renders as:
@@ -69,7 +68,7 @@ Left Text           Centered           Right
 
 Useful for headers/footers:
 ```
-= <<transcribed by @alex >>page 1
+= <transcribed by @alex >page 1
 ```
 
 ### Rule: One Weight Per Line
@@ -77,7 +76,7 @@ Useful for headers/footers:
 You cannot mix weights on a single line. Use bold/italic for inline emphasis instead:
 
 ```
-= Key: Am >>**Adele**           (same weight, bold for emphasis)
+= Key: Am >**Adele**           (same weight, bold for emphasis)
 ```
 
 ---
@@ -100,8 +99,6 @@ Use backslash to escape special characters:
 |---------|--------|
 | `*` | `\*` |
 | `\` | `\\` |
-
-Note: `<` and `>` rarely need escaping since alignment uses double characters (`<<`, `>>`).
 
 ---
 
@@ -145,9 +142,9 @@ Am? Dm?                           (ghost/optional chords)
 ## Complete Example
 
 ```
-=== <<>>Rolling in the Deep
-== <<>>Adele
-= <<>>2011 • *21*
+=== <>Rolling in the Deep
+== <>Adele
+= <>2011 • *21*
 
 = Intro
 Am %
@@ -174,16 +171,16 @@ Am %
 F     G Am     G
 F %  G %
 
-= Verse 3 >>N.C.
+= Verse 3 >N.C.
 (Am?,,, ,<Em?,, ,<G?,, Em?, _ G?,) 2x
 
-= Chorus >>**build up**, no drums
+= Chorus >**build up**, no drums
 (Am <> G <> F <> F _ G) 2x
 
 = Chorus 3
 (Am G F F _ G) 4x Am fermata
 
-= <<transcribed by @alex >>page 1
+= <transcribed by @alex >>page 1
 ```
 
 ---
@@ -198,26 +195,11 @@ Standard Markdown uses `#` for largest, `###` for smaller. For music charts, you
 
 We inverted the intuition: fewer `=` = smaller text, which matches frequency of use.
 
-### Why `=` instead of `-` or `#`?
-
-- `=` feels "structural" and visually balanced
-- `-` is used in chordsheet.com for text lines (potential confusion)
-- `#` has strong Markdown associations that conflict
-
-### Why double characters for alignment (`<<`, `>>`, `<<>>`)?
-
-Single `<` and `>` appear naturally in chord notation:
-- `<Em` = push/anticipation
-- `<>` = accent
-- `>` = decrescendo
-
-Using double characters (`<<`, `>>`) avoids constant escaping in chord lines.
-
 ### Why allow multiple alignment zones per line?
 
 Common use cases:
-- `= <<Left Info >>Right Info` — header/footer layouts
-- `= <<Key: Am <<>>Title >>Page 1` — three-column headers
+- `= <Left Info >Right Info` — header/footer layouts
+- `= <Key: Am <>Title >Page 1` — three-column headers
 
 ### Why one weight per line?
 
@@ -230,7 +212,7 @@ Use `**bold**` for inline emphasis instead.
 
 ### Text lines vs chord lines
 
-Any line starting with `=` is a text line. Everything else is chords. Simple, unambiguous.
+Any line starting with `=` or '-' is a text line. Everything else is chords. Simple, unambiguous.
 
 ---
 
@@ -241,10 +223,10 @@ document     = line*
 line         = text_line | chord_line | blank_line
 
 text_line    = weight SP alignment_zone+
-weight       = "===" | "==" | "="
+weight       = "===" | "==" | "=" | "-" |
 
 alignment_zone = alignment? text_content
-alignment    = "<<>>" | "<<" | ">>"
+alignment    = "<>" | "<" | ">"
 text_content = (formatted_text | plain_char)*
 
 formatted_text = bold_italic | bold | italic
@@ -265,7 +247,7 @@ chord_line   = chord_element (SP chord_element)*
 - **Metadata:** Key, tempo, time signature — as text lines or special syntax?
 - **Form notation:** AABA structure markers?
 - **Rendering pipeline:** Parse → Model → SVG → PNG/PDF
-- **Editor support:** Syntax highlighting for `.cchart` files
+- **Editor support:** Syntax highlighting for `.charts` files
 
 ---
 

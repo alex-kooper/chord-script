@@ -30,9 +30,9 @@ cargo clippy         # Lint code
 
 ### Input Format
 - Custom plain-text DSL (inspired by/improving on chordsheet.com)
-- File extension: `.cchart`
-- Parser uses `nom` for combinator-based parsing
-- Store example `.cchart` files in `examples/` for testing and documentation
+- File extension: `.charts`
+- Parser uses `Chumsky` for combinator-based parsing
+- Store example `.charts` files in `examples/` for testing and documentation
 
 ### Output Formats
 - **SVG**: Vector output, scalable for any size (primary/intermediate format)
@@ -44,12 +44,12 @@ Rendering pipeline: Parse → Model → SVG → (PNG | PDF)
 ### Architecture Layers
 ```
 ┌─────────────┐
-│  .cchart    │  Input: plain text DSL
+│  .charts    │  Input: plain text DSL
 └──────┬──────┘
-       │ nom parser
+       │ Chumsky parser
        ▼
 ┌─────────────┐
-│   Model     │  Domain types: Chart, Section, Chord, Form
+│   Model     │  Domain types: Lines with text or chords
 └──────┬──────┘
        │ render
        ▼
@@ -67,30 +67,6 @@ Each layer is independent:
 - **Parser** (`parser/`): Text → Model, no knowledge of rendering
 - **Model** (`model/`): Pure domain types, no I/O
 - **Render** (`render/`): Model → SVG, format conversion
-
-### Project Structure (Recommended)
-```
-src/
-├── main.rs          # CLI entry point
-├── lib.rs           # Library root (core logic)
-├── parser/          # DSL parser (nom-based)
-│   ├── mod.rs
-│   ├── lexer.rs     # Tokenization
-│   └── ast.rs       # Abstract syntax tree types
-├── model/           # Domain types (Chord, Section, Chart)
-└── render/          # Output formatting (SVG, PNG, PDF)
-    ├── mod.rs
-    ├── svg.rs       # SVG generation
-    ├── png.rs       # PNG rasterization
-    └── pdf.rs       # PDF export
-examples/            # Sample .cchart files demonstrating DSL syntax
-```
-
-### Domain Concepts
-- **Chart**: Complete song structure
-- **Section**: Named parts (Verse, Chorus, Bridge)
-- **Chord**: Musical chord notation (e.g., Cmaj7, Dm7)
-- **Form**: High-level song structure (e.g., AABA)
 
 ## AI Agent Notes
 - When adding features, create small focused modules
