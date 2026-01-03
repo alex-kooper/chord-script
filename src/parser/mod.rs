@@ -150,8 +150,8 @@ mod tests {
     fn test_parse_multiline() {
         let input = r#"=== <Song Title <>Composer >2024
 == <Verse 1
-= <Intro
-- <Piano only"#;
+= Intro
+- Piano only"#;
         
         let result = parse_chart(input);
         assert!(result.is_ok());
