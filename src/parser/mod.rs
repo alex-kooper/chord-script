@@ -19,25 +19,29 @@ pub fn parse_chart(input: &str) -> Result<Chart> {
     chart_parser()
         .parse(input)
         .map(Chart::new)
-        .map_err(|errors| {
-            let error_messages = errors
-                .into_iter()
-                .map(|e| {
-                    let mut output = Vec::new();
-                    Report::build(ReportKind::Error, (), e.span().start)
-                        .with_message("Parse error")
-                        .with_label(
-                            Label::new(e.span())
-                                .with_message(e.to_string())
-                        )
-                        .finish()
-                        .write(Source::from(input), &mut output)
-                        .unwrap();
-                    String::from_utf8(output).unwrap()
-                })
-                .collect();
-            ParseError { errors: error_messages }
-        })
+        .map_err(|errors| format_parse_errors(input, errors))
+}
+
+fn format_parse_errors(input: &str, errors: Vec<Simple<char>>) -> ParseError {
+    let error_messages = errors
+        .into_iter()
+        .map(|e| format_single_error(input, e))
+        .collect();
+    ParseError { errors: error_messages }
+}
+
+fn format_single_error(input: &str, error: Simple<char>) -> String {
+    let mut output = Vec::new();
+    Report::build(ReportKind::Error, (), error.span().start)
+        .with_message("Parse error")
+        .with_label(
+            Label::new(error.span())
+                .with_message(error.to_string())
+        )
+        .finish()
+        .write(Source::from(input), &mut output)
+        .unwrap();
+    String::from_utf8(output).unwrap()
 }
 
 fn chart_parser() -> impl Parser<char, Vec<Line>, Error = Simple<char>> {
