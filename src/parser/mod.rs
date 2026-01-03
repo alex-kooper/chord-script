@@ -1,11 +1,12 @@
 use chumsky::prelude::*;
-use crate::model::{Line, LineLevel, TextSpan, TextStyle};
+use crate::model::{Chart, Line, LineLevel, TextSpan, TextStyle};
 use ariadne::{Report, ReportKind, Label, Source};
 
 /// Parse a complete chart from input text
-pub fn parse_chart(input: &str) -> Result<Vec<Line>, Vec<String>> {
+pub fn parse_chart(input: &str) -> Result<Chart, Vec<String>> {
     chart_parser()
         .parse(input)
+        .map(Chart::new)
         .map_err(|errors| {
             errors
                 .into_iter()
@@ -123,40 +124,40 @@ mod tests {
     fn test_parse_empty() {
         let result = parse_chart("");
         assert!(result.is_ok());
-        assert_eq!(result.unwrap().len(), 0);
+        assert_eq!(result.unwrap().lines.len(), 0);
     }
 
     #[test]
     fn test_parse_header1() {
         let result = parse_chart("=== Left");
         assert!(result.is_ok());
-        let lines = result.unwrap();
-        assert_eq!(lines.len(), 1);
-        assert_eq!(lines[0].level, LineLevel::Header1);
+        let chart = result.unwrap();
+        assert_eq!(chart.lines.len(), 1);
+        assert_eq!(chart.lines[0].level, LineLevel::Header1);
     }
 
     #[test]
     fn test_parse_alignment() {
         let result = parse_chart("=== <Left <>Center >Right");
         assert!(result.is_ok());
-        let lines = result.unwrap();
-        assert_eq!(lines.len(), 1);
-        assert_eq!(lines[0].level, LineLevel::Header1);
+        let chart = result.unwrap();
+        assert_eq!(chart.lines.len(), 1);
+        assert_eq!(chart.lines[0].level, LineLevel::Header1);
         
         // Check left column
-        assert_eq!(lines[0].left.len(), 1);
-        assert_eq!(lines[0].left[0].text, "Left");
-        assert_eq!(lines[0].left[0].style, TextStyle::Normal);
+        assert_eq!(chart.lines[0].left.len(), 1);
+        assert_eq!(chart.lines[0].left[0].text, "Left");
+        assert_eq!(chart.lines[0].left[0].style, TextStyle::Normal);
         
         // Check center column
-        assert_eq!(lines[0].center.len(), 1);
-        assert_eq!(lines[0].center[0].text, "Center");
-        assert_eq!(lines[0].center[0].style, TextStyle::Normal);
+        assert_eq!(chart.lines[0].center.len(), 1);
+        assert_eq!(chart.lines[0].center[0].text, "Center");
+        assert_eq!(chart.lines[0].center[0].style, TextStyle::Normal);
         
         // Check right column
-        assert_eq!(lines[0].right.len(), 1);
-        assert_eq!(lines[0].right[0].text, "Right");
-        assert_eq!(lines[0].right[0].style, TextStyle::Normal);
+        assert_eq!(chart.lines[0].right.len(), 1);
+        assert_eq!(chart.lines[0].right[0].text, "Right");
+        assert_eq!(chart.lines[0].right[0].style, TextStyle::Normal);
     }
 
     #[test]
@@ -168,26 +169,26 @@ mod tests {
         
         let result = parse_chart(input);
         assert!(result.is_ok());
-        let lines = result.unwrap();
-        assert_eq!(lines.len(), 4);
+        let chart = result.unwrap();
+        assert_eq!(chart.lines.len(), 4);
         
         // Header1
-        assert_eq!(lines[0].level, LineLevel::Header1);
-        assert_eq!(lines[0].left[0].text, "Song Title");
-        assert_eq!(lines[0].center[0].text, "Composer");
-        assert_eq!(lines[0].right[0].text, "2024");
+        assert_eq!(chart.lines[0].level, LineLevel::Header1);
+        assert_eq!(chart.lines[0].left[0].text, "Song Title");
+        assert_eq!(chart.lines[0].center[0].text, "Composer");
+        assert_eq!(chart.lines[0].right[0].text, "2024");
         
         // Header2
-        assert_eq!(lines[1].level, LineLevel::Header2);
-        assert_eq!(lines[1].left[0].text, "Verse 1");
+        assert_eq!(chart.lines[1].level, LineLevel::Header2);
+        assert_eq!(chart.lines[1].left[0].text, "Verse 1");
         
         // Header3
-        assert_eq!(lines[2].level, LineLevel::Header3);
-        assert_eq!(lines[2].left[0].text, "Intro");
+        assert_eq!(chart.lines[2].level, LineLevel::Header3);
+        assert_eq!(chart.lines[2].left[0].text, "Intro");
         
         // Text
-        assert_eq!(lines[3].level, LineLevel::Text);
-        assert_eq!(lines[3].left[0].text, "Piano only");
+        assert_eq!(chart.lines[3].level, LineLevel::Text);
+        assert_eq!(chart.lines[3].left[0].text, "Piano only");
     }
 
     #[test]

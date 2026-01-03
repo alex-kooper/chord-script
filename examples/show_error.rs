@@ -16,8 +16,8 @@ fn main() {
         println!("Input: {:?}", input);
         
         match parse_chart(input) {
-            Ok(lines) => {
-                println!("✓ Parsed successfully: {} lines", lines.len());
+            Ok(chart) => {
+                println!("✓ Parsed successfully: {} lines", chart.lines.len());
             }
             Err(errors) => {
                 println!("✗ Parse errors:");

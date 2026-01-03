@@ -1,5 +1,19 @@
 // Model module for chord-script domain types
 
+/// Represents a complete music chart
+#[derive(Debug, Clone, PartialEq)]
+pub struct Chart {
+    /// The lines that make up the chart content
+    pub lines: Vec<Line>,
+}
+
+impl Chart {
+    /// Creates a new chart with the given lines
+    pub fn new(lines: Vec<Line>) -> Self {
+        Self { lines }
+    }
+}
+
 /// Text styling options for span of text
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TextStyle {
