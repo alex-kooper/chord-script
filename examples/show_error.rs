@@ -19,10 +19,10 @@ fn main() {
             Ok(chart) => {
                 println!("✓ Parsed successfully: {} lines", chart.lines.len());
             }
-            Err(errors) => {
+            Err(error) => {
                 println!("✗ Parse errors:");
-                for error in errors {
-                    println!("  - {}", error);
+                for msg in &error.errors {
+                    println!("  - {}", msg);
                 }
             }
         }

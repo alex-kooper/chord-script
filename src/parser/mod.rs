@@ -1,14 +1,26 @@
 use chumsky::prelude::*;
 use crate::model::{Chart, Line, LineLevel, TextSpan, TextStyle};
 use ariadne::{Report, ReportKind, Label, Source};
+use thiserror::Error;
+
+/// Parser error type
+#[derive(Debug, Error)]
+#[error("Failed to parse chart")]
+pub struct ParseError {
+    /// Individual parse errors from the parser
+    pub errors: Vec<String>,
+}
+
+/// Result type alias for parser operations
+pub type Result<T> = std::result::Result<T, ParseError>;
 
 /// Parse a complete chart from input text
-pub fn parse_chart(input: &str) -> Result<Chart, Vec<String>> {
+pub fn parse_chart(input: &str) -> Result<Chart> {
     chart_parser()
         .parse(input)
         .map(Chart::new)
         .map_err(|errors| {
-            errors
+            let error_messages = errors
                 .into_iter()
                 .map(|e| {
                     let mut output = Vec::new();
@@ -23,7 +35,8 @@ pub fn parse_chart(input: &str) -> Result<Chart, Vec<String>> {
                         .unwrap();
                     String::from_utf8(output).unwrap()
                 })
-                .collect()
+                .collect();
+            ParseError { errors: error_messages }
         })
 }
 
@@ -199,7 +212,7 @@ mod tests {
         let result = parse_chart(invalid_input);
         assert!(result.is_err(), "Expected parser to return an error for unclosed italic marker");
         
-        let errors = result.unwrap_err();
-        assert!(!errors.is_empty(), "Expected at least one error message");
+        let error = result.unwrap_err();
+        assert!(!error.errors.is_empty(), "Expected at least one error message");
     }
 }
