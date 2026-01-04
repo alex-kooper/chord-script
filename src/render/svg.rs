@@ -2,38 +2,66 @@ use crate::model::{Chart, LineLevel, TextSpan, TextStyle};
 use svg::node::element::{Text as SvgText, TSpan};
 use svg::Document;
 
+/// Font style configuration (size, weight, line-height)
+#[derive(Debug, Clone)]
+pub struct FontStyle {
+    pub size: f64,
+    pub weight: String,
+    pub line_height: f64,
+}
+
 /// Configuration for SVG rendering
 #[derive(Debug, Clone)]
 pub struct SvgConfig {
-    pub width: u32,
-    pub height: u32,
-    pub margin_horizontal: u32,
-    pub margin_vertical: u32,
-    pub header1_font_size: u32,
-    pub header1_line_height: u32,
-    pub header2_font_size: u32,
-    pub header2_line_height: u32,
-    pub header3_font_size: u32,
-    pub header3_line_height: u32,
-    pub text_font_size: u32,
-    pub text_line_height: u32,
+    // Layout
+    pub width: f64,
+    pub height: f64,
+    pub margin_horizontal: f64,
+    pub margin_vertical: f64,
+    
+    // Font (single font family for all text)
+    pub font_family: String,
+    
+    // Font styles per level
+    pub header1: FontStyle,
+    pub header2: FontStyle,
+    pub header3: FontStyle,
+    pub text: FontStyle,
 }
 
 impl Default for SvgConfig {
     fn default() -> Self {
         Self {
-            width: 800,
-            height: 600,
-            margin_horizontal: 20,
-            margin_vertical: 20,
-            header1_font_size: 18,
-            header1_line_height: 30,
-            header2_font_size: 16,
-            header2_line_height: 25,
-            header3_font_size: 14,
-            header3_line_height: 22,
-            text_font_size: 14,
-            text_line_height: 20,
+            // A4 portrait (ISO): 210mm × 297mm (1:1 coordinate system)
+            width: 210.0,
+            height: 297.0,
+            margin_horizontal: 10.0,
+            margin_vertical: 10.0,
+            
+            // Font (single font family for all text)
+            font_family: "sans-serif".to_string(),
+            
+            // Font styles per level
+            header1: FontStyle {
+                size: 7.5,
+                weight: "500".to_string(),
+                line_height: 11.0,
+            },
+            header2: FontStyle {
+                size: 7.0,
+                weight: "450".to_string(),
+                line_height: 10.0,
+            },
+            header3: FontStyle {
+                size: 6.0,
+                weight: "420".to_string(),
+                line_height: 9.0,
+            },
+            text: FontStyle {
+                size: 4.3,
+                weight: "normal".to_string(),
+                line_height: 6.0,
+            },
         }
     }
 }
@@ -57,9 +85,9 @@ impl SvgGenerator {
     /// Render a Chart to SVG string
     pub fn render(&self, chart: &Chart) -> String {
         let mut document = Document::new()
-            .set("viewBox", (0, 0, self.config.width, self.config.height))
-            .set("width", self.config.width)
-            .set("height", self.config.height);
+            .set("viewBox", format!("0 0 {} {}", self.config.width as i32, self.config.height as i32))
+            .set("width", format!("{}mm", self.config.width))
+            .set("height", format!("{}mm", self.config.height));
 
         let mut y = self.config.margin_vertical;
 
@@ -72,7 +100,7 @@ impl SvgGenerator {
 
             // Center column
             if !line.center.is_empty() {
-                let text_el = self.render_spans(&line.center, self.config.width / 2, y, line.level)
+                let text_el = self.render_spans(&line.center, self.config.width / 2.0, y, line.level)
                     .set("text-anchor", "middle");
                 document = document.add(text_el);
             }
@@ -96,19 +124,16 @@ impl SvgGenerator {
     }
 
     /// Render a sequence of styled text spans as a single SVG text element with tspans
-    fn render_spans(&self, spans: &[TextSpan], x: u32, y: u32, level: LineLevel) -> SvgText {
+    fn render_spans(&self, spans: &[TextSpan], x: f64, y: f64, level: LineLevel) -> SvgText {
         let base_font_size = self.font_size_for_level(level);
-        let font_weight = match level {
-            LineLevel::Header1 | LineLevel::Header2 | LineLevel::Header3 => "bold",
-            LineLevel::Text => "normal",
-        };
+        let base_font_weight = self.font_weight_for_level(level);
 
         let mut text_el = SvgText::new("")
             .set("x", x)
             .set("y", y)
-            .set("font-family", "sans-serif")
+            .set("font-family", self.config.font_family.as_str())
             .set("font-size", base_font_size)
-            .set("font-weight", font_weight);
+            .set("font-weight", base_font_weight);
 
         for span in spans {
             let mut tspan = TSpan::new(&span.text);
@@ -129,21 +154,30 @@ impl SvgGenerator {
         text_el
     }
 
-    fn font_size_for_level(&self, level: LineLevel) -> u32 {
+    fn font_size_for_level(&self, level: LineLevel) -> f64 {
         match level {
-            LineLevel::Header1 => self.config.header1_font_size,
-            LineLevel::Header2 => self.config.header2_font_size,
-            LineLevel::Header3 => self.config.header3_font_size,
-            LineLevel::Text => self.config.text_font_size,
+            LineLevel::Header1 => self.config.header1.size,
+            LineLevel::Header2 => self.config.header2.size,
+            LineLevel::Header3 => self.config.header3.size,
+            LineLevel::Text => self.config.text.size,
         }
     }
 
-    fn line_height_for_level(&self, level: LineLevel) -> u32 {
+    fn font_weight_for_level(&self, level: LineLevel) -> &str {
         match level {
-            LineLevel::Header1 => self.config.header1_line_height,
-            LineLevel::Header2 => self.config.header2_line_height,
-            LineLevel::Header3 => self.config.header3_line_height,
-            LineLevel::Text => self.config.text_line_height,
+            LineLevel::Header1 => &self.config.header1.weight,
+            LineLevel::Header2 => &self.config.header2.weight,
+            LineLevel::Header3 => &self.config.header3.weight,
+            LineLevel::Text => &self.config.text.weight,
+        }
+    }
+
+    fn line_height_for_level(&self, level: LineLevel) -> f64 {
+        match level {
+            LineLevel::Header1 => self.config.header1.line_height,
+            LineLevel::Header2 => self.config.header2.line_height,
+            LineLevel::Header3 => self.config.header3.line_height,
+            LineLevel::Text => self.config.text.line_height,
         }
     }
 }
@@ -226,22 +260,38 @@ mod tests {
         let generator = SvgGenerator::with_defaults();
         let svg = generator.render(&chart);
 
-        assert!(svg.contains("font-weight=\"bold\""));
-        assert!(svg.contains("font-size=\"18\""));
+        assert!(svg.contains("font-weight=\"500\""));
+        assert!(svg.contains("font-size=\"7.5\""));
     }
 
     #[test]
     fn test_custom_config() {
         let config = SvgConfig {
-            width: 1000,
-            height: 800,
-            margin_horizontal: 50,
-            margin_vertical: 30,
-            header1_font_size: 24,
-            header1_line_height: 40,
-            text_font_size: 12,
-            text_line_height: 18,
-            ..Default::default()
+            width: 1000.0,
+            height: 800.0,
+            margin_horizontal: 50.0,
+            margin_vertical: 30.0,
+            font_family: "sans-serif".to_string(),
+            header1: FontStyle {
+                size: 24.0,
+                weight: "bold".to_string(),
+                line_height: 40.0,
+            },
+            header2: FontStyle {
+                size: 20.0,
+                weight: "bold".to_string(),
+                line_height: 30.0,
+            },
+            header3: FontStyle {
+                size: 18.0,
+                weight: "600".to_string(),
+                line_height: 27.0,
+            },
+            text: FontStyle {
+                size: 12.0,
+                weight: "normal".to_string(),
+                line_height: 18.0,
+            },
         };
 
         let generator = SvgGenerator::new(config);

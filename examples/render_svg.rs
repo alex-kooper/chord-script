@@ -12,7 +12,13 @@ fn main() {
         },
         Line {
             level: LineLevel::Header2,
-            left: vec![TextSpan::plain("Verse 1")],
+            left: vec![TextSpan::plain("Header 2")],
+            center: vec![],
+            right: vec![],
+        },
+        Line {
+            level: LineLevel::Header3,
+            left: vec![TextSpan::new("Verse 1", TextStyle::Italic)],
             center: vec![],
             right: vec![],
         },
