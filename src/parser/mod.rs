@@ -1,15 +1,25 @@
 use chumsky::prelude::*;
 use crate::model::{Chart, Line, LineLevel, TextSpan, TextStyle};
 use ariadne::{Report, ReportKind, Label, Source};
-use thiserror::Error;
+use std::fmt;
 
 /// Parser error type
-#[derive(Debug, Error)]
-#[error("Failed to parse chart")]
+#[derive(Debug)]
 pub struct ParseError {
     /// Individual parse errors from the parser
     pub errors: Vec<String>,
 }
+
+impl fmt::Display for ParseError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for error in &self.errors {
+            writeln!(f, "{}", error)?;
+        }
+        Ok(())
+    }
+}
+
+impl std::error::Error for ParseError {}
 
 /// Result type alias for parser operations
 pub type Result<T> = std::result::Result<T, ParseError>;
@@ -72,25 +82,35 @@ fn line_parser() -> impl Parser<char, Line, Error = Simple<char>> {
 fn columns_parser() -> impl Parser<char, (Vec<TextSpan>, Vec<TextSpan>, Vec<TextSpan>), Error = Simple<char>> {
     let text_span = styled_text_parser().boxed();
     
-    // Parse optional left section
-    let left_part = (just("<").ignored().then(text_span.clone().repeated()))
-        .or(text_span.clone().repeated().map(|spans| ((), spans)))
-        .map(|(_, spans)| spans);
+    // Try center marker first (since <> starts with <, it must be checked before <)
+    let with_center = just("<>")
+        .ignore_then(text_span.clone().repeated())
+        .then(just(">").ignore_then(text_span.clone().repeated()).or_not())
+        .map(|(center, right)| {
+            (Vec::new(), center, right.unwrap_or_default())
+        });
     
-    // Parse optional center section
-    let center_part = (just("<>").ignored().then(text_span.clone().repeated()))
-        .or(just("").to(((), Vec::new())))
-        .map(|(_, spans)| spans);
+    // Try left marker with optional center and right
+    let with_left = just("<")
+        .ignore_then(text_span.clone().repeated())
+        .then(just("<>").ignore_then(text_span.clone().repeated()).or_not())
+        .then(just(">").ignore_then(text_span.clone().repeated()).or_not())
+        .map(|((left, center), right)| {
+            (left, center.unwrap_or_default(), right.unwrap_or_default())
+        });
     
-    // Parse optional right section
-    let right_part = (just(">").ignored().then(text_span.repeated()))
-        .or(just("").to(((), Vec::new())))
-        .map(|(_, spans)| spans);
+    // Try right marker only (starts with >)
+    let with_right = just(">")
+        .ignore_then(text_span.clone().repeated())
+        .map(|right| {
+            (Vec::new(), Vec::new(), right)
+        });
     
-    left_part
-        .then(center_part)
-        .then(right_part)
-        .map(|((left, center), right)| (left, center, right))
+    // No markers - just left content
+    let no_markers = text_span.repeated()
+        .map(|left| (left, Vec::new(), Vec::new()));
+    
+    with_center.or(with_left).or(with_right).or(no_markers)
 }
 
 fn styled_text_parser() -> impl Parser<char, TextSpan, Error = Simple<char>> {

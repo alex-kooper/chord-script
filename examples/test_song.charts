@@ -1,0 +1,16 @@
+=== <>My Test Song
+== <>By Test Artist
+
+      = Verse 1
+= <Verse 2 - explicitely aligned to the left
+= >Verse 1 - right-aligned
+- This is a *test* song
+- With some **bold** text
+= Chorus
+== Chorus
+== Chorus
+- <This is chorus
+- <>This **is** chorus - centered
+- This is chorus
+- This        is         chorus     !!!!
+- >Centered chorus - right aligned

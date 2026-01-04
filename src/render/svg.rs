@@ -92,6 +92,8 @@ impl SvgGenerator {
         let mut y = self.config.margin_vertical;
 
         for line in &chart.lines {
+            y += self.line_height_for_level(line.level);
+            
             // Left column
             if !line.left.is_empty() {
                 let text_el = self.render_spans(&line.left, self.config.margin_horizontal, y, line.level);
@@ -116,8 +118,6 @@ impl SvgGenerator {
                 .set("text-anchor", "end");
                 document = document.add(text_el);
             }
-
-            y += self.line_height_for_level(line.level);
         }
 
         document.to_string()
