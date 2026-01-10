@@ -1,20 +1,24 @@
 use chumsky::prelude::*;
+use chumsky::extra;
 use crate::model::{Chart, Line, LineLevel, TextSpan, TextStyle};
+use miette::{Diagnostic, SourceSpan};
 use std::fmt;
 
 /// Parser error type
-#[derive(Debug)]
+#[derive(Debug, Diagnostic)]
+#[diagnostic(code(parser::parse_error))]
 pub struct ParseError {
-    /// Individual parse errors from the parser
-    pub errors: Vec<String>,
+    #[source_code]
+    src: String,
+    #[label("here")]
+    span: SourceSpan,
+    #[help]
+    help: String,
 }
 
 impl fmt::Display for ParseError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        for error in &self.errors {
-            writeln!(f, "{}", error)?;
-        }
-        Ok(())
+        write!(f, "Parse error")
     }
 }
 
@@ -29,16 +33,25 @@ pub fn parse_chart(input: &str) -> Result<Chart> {
     match result.into_result() {
         Ok(lines) => Ok(Chart::new(lines)),
         Err(errors) => {
-            let error_messages: Vec<String> = errors
-                .into_iter()
-                .map(|e| format!("Parse error: {}", e))
-                .collect();
-            Err(ParseError { errors: error_messages })
+            if let Some(error) = errors.first() {
+                let span = error.span();
+                Err(ParseError {
+                    src: input.to_string(),
+                    span: SourceSpan::new(span.start.into(), span.end - span.start),
+                    help: format!("{}", error),
+                })
+            } else {
+                Err(ParseError {
+                    src: input.to_string(),
+                    span: SourceSpan::new(0.into(), 1),
+                    help: "Unknown parse error".to_string(),
+                })
+            }
         }
     }
 }
 
-fn chart_parser<'a>() -> impl Parser<'a, &'a str, Vec<Line>> {
+fn chart_parser<'a>() -> impl Parser<'a, &'a str, Vec<Line>, extra::Err<Rich<'a, char>>> {
     line_parser()
         .padded()
         .repeated()
@@ -46,7 +59,7 @@ fn chart_parser<'a>() -> impl Parser<'a, &'a str, Vec<Line>> {
         .then_ignore(end())
 }
 
-fn line_parser<'a>() -> impl Parser<'a, &'a str, Line> {
+fn line_parser<'a>() -> impl Parser<'a, &'a str, Line, extra::Err<Rich<'a, char>>> {
     let header1 = just("===").ignored().to(LineLevel::Header1);
     let header2 = just("==").ignored().to(LineLevel::Header2);
     let header3 = just("=").ignored().to(LineLevel::Header3);
@@ -64,7 +77,7 @@ fn line_parser<'a>() -> impl Parser<'a, &'a str, Line> {
         })
 }
 
-fn columns_parser<'a>() -> impl Parser<'a, &'a str, (Vec<TextSpan>, Vec<TextSpan>, Vec<TextSpan>)> {
+fn columns_parser<'a>() -> impl Parser<'a, &'a str, (Vec<TextSpan>, Vec<TextSpan>, Vec<TextSpan>), extra::Err<Rich<'a, char>>> {
     // Try center marker first (since <> starts with <, it must be checked before <)
     let with_center = just("<>")
         .ignore_then(styled_text_parser().repeated().collect::<Vec<_>>())
@@ -98,7 +111,7 @@ fn columns_parser<'a>() -> impl Parser<'a, &'a str, (Vec<TextSpan>, Vec<TextSpan
     with_center.or(with_left).or(with_right).or(no_markers)
 }
 
-fn styled_text_parser<'a>() -> impl Parser<'a, &'a str, TextSpan> {
+fn styled_text_parser<'a>() -> impl Parser<'a, &'a str, TextSpan, extra::Err<Rich<'a, char>>> {
     let bold_italic = just("***")
         .ignored()
         .then(none_of("*").repeated().at_least(1).collect::<String>())
@@ -222,6 +235,6 @@ mod tests {
         assert!(result.is_err(), "Expected parser to return an error for unclosed italic marker");
         
         let error = result.unwrap_err();
-        assert!(!error.errors.is_empty(), "Expected at least one error message");
+        assert!(!error.help.is_empty(), "Expected error to have help text");
     }
 }

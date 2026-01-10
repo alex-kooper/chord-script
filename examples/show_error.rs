@@ -1,4 +1,5 @@
 use chord_script::parser::parse_chart;
+use miette::Report;
 
 fn main() {
     // Test various invalid inputs
@@ -20,10 +21,9 @@ fn main() {
                 println!("✓ Parsed successfully: {} lines", chart.lines.len());
             }
             Err(error) => {
-                println!("✗ Parse errors:");
-                for msg in &error.errors {
-                    println!("  - {}", msg);
-                }
+                println!("✗ Parse error:");
+                let report: Report = error.into();
+                println!("{:?}", report);
             }
         }
         println!();

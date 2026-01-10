@@ -1,5 +1,6 @@
 use chord_script::parser::parse_chart;
 use chord_script::render::SvgGenerator;
+use miette::GraphicalReportHandler;
 use std::env;
 use std::fs;
 use std::path::Path;
@@ -30,7 +31,10 @@ fn main() {
         Ok(chart) => chart,
         Err(err) => {
             eprintln!("Parse error in '{}':", input_file);
-            eprintln!("{}", err);
+            let handler = GraphicalReportHandler::new();
+            let mut output = String::new();
+            let _ = handler.render_report(&mut output, &err);
+            eprintln!("{}", output);
             process::exit(1);
         }
     };
