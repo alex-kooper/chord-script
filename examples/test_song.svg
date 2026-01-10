@@ -1,0 +1,68 @@
+<svg height="297mm" viewBox="0 0 210 297" width="210mm" xmlns="http://www.w3.org/2000/svg">
+<text font-family="sans-serif" font-size="7.5" font-weight="500" text-anchor="middle" x="105" y="21">
+
+<tspan>My Test Song</tspan>
+</text>
+<text font-family="sans-serif" font-size="7" font-weight="450" text-anchor="middle" x="105" y="31">
+
+<tspan>By Test Artist</tspan>
+</text>
+<text font-family="sans-serif" font-size="6" font-weight="420" x="10" y="40">
+
+<tspan>Verse 1</tspan>
+</text>
+<text font-family="sans-serif" font-size="6" font-weight="420" x="10" y="49">
+
+<tspan>Verse 2 - explicitely aligned to the left</tspan>
+</text>
+<text font-family="sans-serif" font-size="6" font-weight="420" text-anchor="end" x="200" y="58">
+
+<tspan>Verse 1 - right-aligned</tspan>
+</text>
+<text font-family="sans-serif" font-size="4.3" font-weight="normal" x="10" y="64">
+
+<tspan>This is a</tspan>
+<tspan font-style="italic">test</tspan>
+<tspan>song</tspan>
+</text>
+<text font-family="sans-serif" font-size="4.3" font-weight="normal" x="10" y="70">
+
+<tspan>With some</tspan>
+<tspan font-weight="bold">bold</tspan>
+<tspan>text</tspan>
+</text>
+<text font-family="sans-serif" font-size="6" font-weight="420" x="10" y="79">
+
+<tspan>Chorus</tspan>
+</text>
+<text font-family="sans-serif" font-size="7" font-weight="450" x="10" y="89">
+
+<tspan>Chorus</tspan>
+</text>
+<text font-family="sans-serif" font-size="7" font-weight="450" x="10" y="99">
+
+<tspan>Chorus</tspan>
+</text>
+<text font-family="sans-serif" font-size="4.3" font-weight="normal" x="10" y="105">
+
+<tspan>This is chorus</tspan>
+</text>
+<text font-family="sans-serif" font-size="4.3" font-weight="normal" text-anchor="middle" x="105" y="111">
+
+<tspan>This</tspan>
+<tspan font-weight="bold">is</tspan>
+<tspan>chorus - centered</tspan>
+</text>
+<text font-family="sans-serif" font-size="4.3" font-weight="normal" x="10" y="117">
+
+<tspan>This is chorus</tspan>
+</text>
+<text font-family="sans-serif" font-size="4.3" font-weight="normal" x="10" y="123">
+
+<tspan>This        is         chorus     !!!!</tspan>
+</text>
+<text font-family="sans-serif" font-size="4.3" font-weight="normal" text-anchor="end" x="200" y="129">
+
+<tspan>Centered chorus - right aligned</tspan>
+</text>
+</svg>

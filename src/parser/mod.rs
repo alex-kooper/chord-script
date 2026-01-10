@@ -1,6 +1,5 @@
 use chumsky::prelude::*;
 use crate::model::{Chart, Line, LineLevel, TextSpan, TextStyle};
-use ariadne::{Report, ReportKind, Label, Source};
 use std::fmt;
 
 /// Parser error type
@@ -26,42 +25,28 @@ pub type Result<T> = std::result::Result<T, ParseError>;
 
 /// Parse a complete chart from input text
 pub fn parse_chart(input: &str) -> Result<Chart> {
-    chart_parser()
-        .parse(input)
-        .map(Chart::new)
-        .map_err(|errors| format_parse_errors(input, errors))
+    let result = chart_parser().parse(input);
+    match result.into_result() {
+        Ok(lines) => Ok(Chart::new(lines)),
+        Err(errors) => {
+            let error_messages: Vec<String> = errors
+                .into_iter()
+                .map(|e| format!("Parse error: {}", e))
+                .collect();
+            Err(ParseError { errors: error_messages })
+        }
+    }
 }
 
-fn format_parse_errors(input: &str, errors: Vec<Simple<char>>) -> ParseError {
-    let error_messages = errors
-        .into_iter()
-        .map(|e| format_single_error(input, e))
-        .collect();
-    ParseError { errors: error_messages }
-}
-
-fn format_single_error(input: &str, error: Simple<char>) -> String {
-    let mut output = Vec::new();
-    Report::build(ReportKind::Error, (), error.span().start)
-        .with_message("Parse error")
-        .with_label(
-            Label::new(error.span())
-                .with_message(error.to_string())
-        )
-        .finish()
-        .write(Source::from(input), &mut output)
-        .unwrap();
-    String::from_utf8(output).unwrap()
-}
-
-fn chart_parser() -> impl Parser<char, Vec<Line>, Error = Simple<char>> {
+fn chart_parser<'a>() -> impl Parser<'a, &'a str, Vec<Line>> {
     line_parser()
         .padded()
         .repeated()
+        .collect()
         .then_ignore(end())
 }
 
-fn line_parser() -> impl Parser<char, Line, Error = Simple<char>> {
+fn line_parser<'a>() -> impl Parser<'a, &'a str, Line> {
     let header1 = just("===").ignored().to(LineLevel::Header1);
     let header2 = just("==").ignored().to(LineLevel::Header2);
     let header3 = just("=").ignored().to(LineLevel::Header3);
@@ -79,44 +64,44 @@ fn line_parser() -> impl Parser<char, Line, Error = Simple<char>> {
         })
 }
 
-fn columns_parser() -> impl Parser<char, (Vec<TextSpan>, Vec<TextSpan>, Vec<TextSpan>), Error = Simple<char>> {
-    let text_span = styled_text_parser().boxed();
-    
+fn columns_parser<'a>() -> impl Parser<'a, &'a str, (Vec<TextSpan>, Vec<TextSpan>, Vec<TextSpan>)> {
     // Try center marker first (since <> starts with <, it must be checked before <)
     let with_center = just("<>")
-        .ignore_then(text_span.clone().repeated())
-        .then(just(">").ignore_then(text_span.clone().repeated()).or_not())
+        .ignore_then(styled_text_parser().repeated().collect::<Vec<_>>())
+        .then(just(">").ignore_then(styled_text_parser().repeated().collect::<Vec<_>>()).or_not())
         .map(|(center, right)| {
             (Vec::new(), center, right.unwrap_or_default())
         });
     
     // Try left marker with optional center and right
     let with_left = just("<")
-        .ignore_then(text_span.clone().repeated())
-        .then(just("<>").ignore_then(text_span.clone().repeated()).or_not())
-        .then(just(">").ignore_then(text_span.clone().repeated()).or_not())
+        .ignore_then(styled_text_parser().repeated().collect::<Vec<_>>())
+        .then(just("<>").ignore_then(styled_text_parser().repeated().collect::<Vec<_>>()).or_not())
+        .then(just(">").ignore_then(styled_text_parser().repeated().collect::<Vec<_>>()).or_not())
         .map(|((left, center), right)| {
             (left, center.unwrap_or_default(), right.unwrap_or_default())
         });
     
     // Try right marker only (starts with >)
     let with_right = just(">")
-        .ignore_then(text_span.clone().repeated())
+        .ignore_then(styled_text_parser().repeated().collect::<Vec<_>>())
         .map(|right| {
             (Vec::new(), Vec::new(), right)
         });
     
     // No markers - just left content
-    let no_markers = text_span.repeated()
+    let no_markers = styled_text_parser()
+        .repeated()
+        .collect::<Vec<_>>()
         .map(|left| (left, Vec::new(), Vec::new()));
     
     with_center.or(with_left).or(with_right).or(no_markers)
 }
 
-fn styled_text_parser() -> impl Parser<char, TextSpan, Error = Simple<char>> {
+fn styled_text_parser<'a>() -> impl Parser<'a, &'a str, TextSpan> {
     let bold_italic = just("***")
         .ignored()
-        .then(none_of(['*'].as_ref()).repeated().at_least(1).collect::<String>())
+        .then(none_of("*").repeated().at_least(1).collect::<String>())
         .then_ignore(just("***"))
         .map(|(_, text)| TextSpan {
             text: text.trim().to_string(),
@@ -125,7 +110,7 @@ fn styled_text_parser() -> impl Parser<char, TextSpan, Error = Simple<char>> {
 
     let bold = just("**")
         .ignored()
-        .then(none_of(['*'].as_ref()).repeated().at_least(1).collect::<String>())
+        .then(none_of("*").repeated().at_least(1).collect::<String>())
         .then_ignore(just("**"))
         .map(|(_, text)| TextSpan {
             text: text.trim().to_string(),
@@ -134,14 +119,14 @@ fn styled_text_parser() -> impl Parser<char, TextSpan, Error = Simple<char>> {
 
     let italic = just("*")
         .ignored()
-        .then(none_of(['*', '<', '>'].as_ref()).repeated().at_least(1).collect::<String>())
+        .then(none_of("*<>\n").repeated().at_least(1).collect::<String>())
         .then_ignore(just("*"))
         .map(|(_, text)| TextSpan {
             text: text.trim().to_string(),
             style: TextStyle::Italic,
         });
 
-    let plain = none_of(['<', '>', '*', '\n'].as_ref())
+    let plain = none_of("<>*\n")
         .repeated()
         .at_least(1)
         .collect::<String>()
