@@ -32,35 +32,35 @@ pub struct SvgConfig {
 impl Default for SvgConfig {
     fn default() -> Self {
         Self {
-            // A4 portrait (ISO): 210mm × 297mm (1:1 coordinate system)
-            width: 210.0,
-            height: 297.0,
-            margin_horizontal: 10.0,
-            margin_vertical: 10.0,
+            // A4 portrait: 595pt × 842pt (1pt = 1/72 inch)
+            width: 595.0,
+            height: 842.0,
+            margin_horizontal: 28.0,  // ~10mm
+            margin_vertical: 28.0,    // ~10mm
             
             // Font (single font family for all text)
             font_family: "sans-serif".to_string(),
             
             // Font styles per level
             header1: FontStyle {
-                size: 7.5,
+                size: 18.0,
                 weight: "500".to_string(),
-                line_height: 11.0,
+                line_height: 24.0,
             },
             header2: FontStyle {
-                size: 7.0,
+                size: 14.0,
                 weight: "450".to_string(),
-                line_height: 10.0,
+                line_height: 20.0,
             },
             header3: FontStyle {
-                size: 6.0,
+                size: 11.0,
                 weight: "420".to_string(),
-                line_height: 9.0,
+                line_height: 16.0,
             },
             text: FontStyle {
-                size: 4.3,
+                size: 10.0,
                 weight: "normal".to_string(),
-                line_height: 6.0,
+                line_height: 14.0,
             },
         }
     }
@@ -86,8 +86,8 @@ impl SvgGenerator {
     pub fn render(&self, chart: &Chart) -> String {
         let mut document = Document::new()
             .set("viewBox", format!("0 0 {} {}", self.config.width as i32, self.config.height as i32))
-            .set("width", format!("{}mm", self.config.width))
-            .set("height", format!("{}mm", self.config.height));
+            .set("width", format!("{}pt", self.config.width))
+            .set("height", format!("{}pt", self.config.height));
 
         let mut y = self.config.margin_vertical;
 
@@ -125,15 +125,14 @@ impl SvgGenerator {
 
     /// Render a sequence of styled text spans as a single SVG text element with tspans
     fn render_spans(&self, spans: &[TextSpan], x: f64, y: f64, level: LineLevel) -> SvgText {
-        let base_font_size = self.font_size_for_level(level);
-        let base_font_weight = self.font_weight_for_level(level);
+        let style = self.font_style_for_level(level);
 
         let mut text_el = SvgText::new("")
             .set("x", x)
             .set("y", y)
             .set("font-family", self.config.font_family.as_str())
-            .set("font-size", base_font_size)
-            .set("font-weight", base_font_weight);
+            .set("font-size", style.size)
+            .set("font-weight", style.weight.as_str());
 
         for span in spans {
             let mut tspan = TSpan::new(&span.text);
@@ -154,31 +153,17 @@ impl SvgGenerator {
         text_el
     }
 
-    fn font_size_for_level(&self, level: LineLevel) -> f64 {
+    fn font_style_for_level(&self, level: LineLevel) -> &FontStyle {
         match level {
-            LineLevel::Header1 => self.config.header1.size,
-            LineLevel::Header2 => self.config.header2.size,
-            LineLevel::Header3 => self.config.header3.size,
-            LineLevel::Text => self.config.text.size,
-        }
-    }
-
-    fn font_weight_for_level(&self, level: LineLevel) -> &str {
-        match level {
-            LineLevel::Header1 => &self.config.header1.weight,
-            LineLevel::Header2 => &self.config.header2.weight,
-            LineLevel::Header3 => &self.config.header3.weight,
-            LineLevel::Text => &self.config.text.weight,
+            LineLevel::Header1 => &self.config.header1,
+            LineLevel::Header2 => &self.config.header2,
+            LineLevel::Header3 => &self.config.header3,
+            LineLevel::Text => &self.config.text,
         }
     }
 
     fn line_height_for_level(&self, level: LineLevel) -> f64 {
-        match level {
-            LineLevel::Header1 => self.config.header1.line_height,
-            LineLevel::Header2 => self.config.header2.line_height,
-            LineLevel::Header3 => self.config.header3.line_height,
-            LineLevel::Text => self.config.text.line_height,
-        }
+        self.font_style_for_level(level).line_height
     }
 }
 
