@@ -10,14 +10,32 @@ pub struct FontStyle {
     pub line_height: f64,
 }
 
-/// Configuration for SVG rendering
+/// Layout configuration (page dimensions and margins)
 #[derive(Debug, Clone)]
-pub struct SvgConfig {
-    // Layout
+pub struct LayoutConfig {
     pub width: f64,
     pub height: f64,
     pub margin_horizontal: f64,
     pub margin_vertical: f64,
+}
+
+impl Default for LayoutConfig {
+    fn default() -> Self {
+        Self {
+            // A4 portrait: 595pt × 842pt (1pt = 1/72 inch)
+            width: 595.0,
+            height: 842.0,
+            margin_horizontal: 28.0,  // ~10mm
+            margin_vertical: 28.0,    // ~10mm
+        }
+    }
+}
+
+/// Configuration for SVG rendering
+#[derive(Debug, Clone)]
+pub struct SvgConfig {
+    // Layout
+    pub layout: LayoutConfig,
     
     // Font (single font family for all text)
     pub font_family: String,
@@ -32,11 +50,7 @@ pub struct SvgConfig {
 impl Default for SvgConfig {
     fn default() -> Self {
         Self {
-            // A4 portrait: 595pt × 842pt (1pt = 1/72 inch)
-            width: 595.0,
-            height: 842.0,
-            margin_horizontal: 28.0,  // ~10mm
-            margin_vertical: 28.0,    // ~10mm
+            layout: LayoutConfig::default(),
             
             // Font (single font family for all text)
             font_family: "sans-serif".to_string(),
@@ -84,25 +98,27 @@ impl SvgGenerator {
 
     /// Render a Chart to SVG string
     pub fn render(&self, chart: &Chart) -> String {
+        let layout = &self.config.layout;
+        
         let mut document = Document::new()
-            .set("viewBox", format!("0 0 {} {}", self.config.width as i32, self.config.height as i32))
-            .set("width", format!("{}pt", self.config.width))
-            .set("height", format!("{}pt", self.config.height));
+            .set("viewBox", format!("0 0 {} {}", layout.width as i32, layout.height as i32))
+            .set("width", format!("{}pt", layout.width))
+            .set("height", format!("{}pt", layout.height));
 
-        let mut y = self.config.margin_vertical;
+        let mut y = layout.margin_vertical;
 
         for line in &chart.lines {
             y += self.line_height_for_level(line.level);
             
             // Left column
             if !line.left.is_empty() {
-                let text_el = self.render_spans(&line.left, self.config.margin_horizontal, y, line.level);
+                let text_el = self.render_spans(&line.left, layout.margin_horizontal, y, line.level);
                 document = document.add(text_el);
             }
 
             // Center column
             if !line.center.is_empty() {
-                let text_el = self.render_spans(&line.center, self.config.width / 2.0, y, line.level)
+                let text_el = self.render_spans(&line.center, layout.width / 2.0, y, line.level)
                     .set("text-anchor", "middle");
                 document = document.add(text_el);
             }
@@ -111,7 +127,7 @@ impl SvgGenerator {
             if !line.right.is_empty() {
                 let text_el = self.render_spans(
                     &line.right,
-                    self.config.width - self.config.margin_horizontal,
+                    layout.width - layout.margin_horizontal,
                     y,
                     line.level,
                 )

@@ -81,10 +81,12 @@ fn test_header_styling() {
 #[test]
 fn test_custom_config() {
     let config = SvgConfig {
-        width: 1000.0,
-        height: 800.0,
-        margin_horizontal: 50.0,
-        margin_vertical: 30.0,
+        layout: LayoutConfig {
+            width: 1000.0,
+            height: 800.0,
+            margin_horizontal: 50.0,
+            margin_vertical: 30.0,
+        },
         font_family: "sans-serif".to_string(),
         header1: FontStyle {
             size: 24.0,
