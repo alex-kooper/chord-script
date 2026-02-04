@@ -246,7 +246,7 @@ mod tests {
         let svg = generator.render(&chart);
 
         assert!(svg.contains("font-weight=\"500\""));
-        assert!(svg.contains("font-size=\"7.5\""));
+        assert!(svg.contains("font-size=\"18\""));
     }
 
     #[test]

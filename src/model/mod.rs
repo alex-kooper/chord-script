@@ -71,3 +71,34 @@ pub struct Line {
     pub center: Vec<TextSpan>,
     pub right: Vec<TextSpan>,
 }
+impl Line {
+    /// Create a new line with explicit columns and level
+    pub fn new(
+        level: LineLevel,
+        left: Vec<TextSpan>,
+        center: Vec<TextSpan>,
+        right: Vec<TextSpan>,
+    ) -> Self {
+        Self {
+            level,
+            left,
+            center,
+            right,
+        }
+    }
+
+    /// Create a line with plain text in each column (Normal style)
+    pub fn plain_text(
+        level: LineLevel,
+        left: impl Into<String>,
+        center: impl Into<String>,
+        right: impl Into<String>,
+    ) -> Self {
+        Self {
+            level,
+            left: vec![TextSpan::plain(left)],
+            center: vec![TextSpan::plain(center)],
+            right: vec![TextSpan::plain(right)],
+        }
+    }
+}
