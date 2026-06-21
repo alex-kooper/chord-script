@@ -116,37 +116,25 @@ fn styled_text_parser<'a>() -> impl Parser<'a, &'a str, TextSpan, extra::Err<Ric
         .ignored()
         .then(none_of("*").repeated().at_least(1).collect::<String>())
         .then_ignore(just("***"))
-        .map(|(_, text)| TextSpan {
-            text: text.trim().to_string(),
-            style: TextStyle::BoldItalic,
-        });
+        .map(|(_, text)| TextSpan::new(text, TextStyle::BoldItalic));
 
     let bold = just("**")
         .ignored()
         .then(none_of("*").repeated().at_least(1).collect::<String>())
         .then_ignore(just("**"))
-        .map(|(_, text)| TextSpan {
-            text: text.trim().to_string(),
-            style: TextStyle::Bold,
-        });
+        .map(|(_, text)| TextSpan::new(text, TextStyle::Bold));
 
     let italic = just("*")
         .ignored()
         .then(none_of("*<>\n").repeated().at_least(1).collect::<String>())
         .then_ignore(just("*"))
-        .map(|(_, text)| TextSpan {
-            text: text.trim().to_string(),
-            style: TextStyle::Italic,
-        });
+        .map(|(_, text)| TextSpan::new(text, TextStyle::Italic));
 
     let plain = none_of("<>*\n")
         .repeated()
         .at_least(1)
         .collect::<String>()
-        .map(|text| TextSpan {
-            text: text.trim().to_string(),
-            style: TextStyle::Normal,
-        });
+        .map(|text| TextSpan::new(text, TextStyle::Normal));
 
     bold_italic.or(bold).or(italic).or(plain)
 }
@@ -181,17 +169,17 @@ mod tests {
         
         // Check left column
         assert_eq!(chart.lines[0].left.len(), 1);
-        assert_eq!(chart.lines[0].left[0].text, "Left");
+        assert_eq!(chart.lines[0].left[0].text.as_ref(), "Left");
         assert_eq!(chart.lines[0].left[0].style, TextStyle::Normal);
         
         // Check center column
         assert_eq!(chart.lines[0].center.len(), 1);
-        assert_eq!(chart.lines[0].center[0].text, "Center");
+        assert_eq!(chart.lines[0].center[0].text.as_ref(), "Center");
         assert_eq!(chart.lines[0].center[0].style, TextStyle::Normal);
         
         // Check right column
         assert_eq!(chart.lines[0].right.len(), 1);
-        assert_eq!(chart.lines[0].right[0].text, "Right");
+        assert_eq!(chart.lines[0].right[0].text.as_ref(), "Right");
         assert_eq!(chart.lines[0].right[0].style, TextStyle::Normal);
     }
 
@@ -209,21 +197,21 @@ mod tests {
         
         // Header1
         assert_eq!(chart.lines[0].level, LineLevel::Header1);
-        assert_eq!(chart.lines[0].left[0].text, "Song Title");
-        assert_eq!(chart.lines[0].center[0].text, "Composer");
-        assert_eq!(chart.lines[0].right[0].text, "2024");
+        assert_eq!(chart.lines[0].left[0].text.as_ref(), "Song Title");
+        assert_eq!(chart.lines[0].center[0].text.as_ref(), "Composer");
+        assert_eq!(chart.lines[0].right[0].text.as_ref(), "2024");
         
         // Header2
         assert_eq!(chart.lines[1].level, LineLevel::Header2);
-        assert_eq!(chart.lines[1].left[0].text, "Verse 1");
+        assert_eq!(chart.lines[1].left[0].text.as_ref(), "Verse 1");
         
         // Header3
         assert_eq!(chart.lines[2].level, LineLevel::Header3);
-        assert_eq!(chart.lines[2].left[0].text, "Intro");
+        assert_eq!(chart.lines[2].left[0].text.as_ref(), "Intro");
         
         // Text
         assert_eq!(chart.lines[3].level, LineLevel::Text);
-        assert_eq!(chart.lines[3].left[0].text, "Piano only");
+        assert_eq!(chart.lines[3].left[0].text.as_ref(), "Piano only");
     }
 
     #[test]

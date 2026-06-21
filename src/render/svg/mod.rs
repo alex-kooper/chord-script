@@ -151,7 +151,8 @@ impl SvgGenerator {
             .set("font-weight", style.weight.as_str());
 
         for span in spans {
-            let mut tspan = TSpan::new(&span.text);
+            let text: &str = span.text.as_ref();
+            let mut tspan = TSpan::new(text);
 
             // Apply text styling
             tspan = match span.style {

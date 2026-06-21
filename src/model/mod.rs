@@ -1,5 +1,16 @@
 // Model module for chord-script domain types
 
+use nutype::nutype;
+
+/// Non-empty text content for a styled span.
+/// Guaranteed to be trimmed and non-empty after trimming.
+#[nutype(
+    sanitize(trim),
+    validate(not_empty),
+    derive(Debug, Clone, PartialEq, Eq, AsRef)
+)]
+pub struct SpanText(String);
+
 /// Represents a complete music chart
 #[derive(Debug, Clone, PartialEq)]
 pub struct Chart {
@@ -30,23 +41,35 @@ pub enum TextStyle {
 /// A styled span of text
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TextSpan {
-    pub text: String,
+    pub text: SpanText,
     pub style: TextStyle,
 }
 
 impl TextSpan {
     pub fn new(text: impl Into<String>, style: TextStyle) -> Self {
         Self {
-            text: text.into(),
+            text: SpanText::try_new(text.into())
+                .expect("TextSpan text must not be empty"),
             style,
         }
     }
 
     pub fn plain(text: impl Into<String>) -> Self {
         Self {
-            text: text.into(),
+            text: SpanText::try_new(text.into())
+                .expect("TextSpan text must not be empty"),
             style: TextStyle::Normal,
         }
+    }
+
+    /// Fallible constructor — returns `None` if text is empty after trimming
+    pub fn try_new(text: impl Into<String>, style: TextStyle) -> Option<Self> {
+        SpanText::try_new(text.into()).ok().map(|text| Self { text, style })
+    }
+
+    /// Fallible plain text constructor
+    pub fn try_plain(text: impl Into<String>) -> Option<Self> {
+        Self::try_new(text, TextStyle::Normal)
     }
 }
 

@@ -19,7 +19,8 @@ Layers must stay independent. Parser and render must not depend on each other.
 - Files should not exceed 300 lines. Split large files into smaller modules with meaningful names.
 - Functions/methods should not exceed 50 lines. Extract helpers with clear, descriptive names.
 - Prefer domain-specific types over primitives (`String`, `usize`, etc.), especially in the model layer. Use newtypes, enums, and structs to make invalid states unrepresentable.
-- Use [`derive_more`](https://docs.rs/derive_more) to reduce boilerplate on newtypes and structs (`From`, `Display`, `Into`, `AsRef`, etc.).
+- Use [`derive_more`](https://docs.rs/derive_more) to reduce boilerplate on structs and enums (`From`, `Display`, `Into`, `AsRef`, etc.).
+- Use [`nutype`](https://docs.rs/nutype) for validated newtypes with sanitization and constraints (e.g. non-empty strings).
 
 ### Error handling
 
