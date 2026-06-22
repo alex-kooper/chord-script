@@ -6,7 +6,8 @@ edition = "2024"
 [dependencies]
 chumsky = "0.13"
 thiserror = "2.0.18"
-miette = { version = "7.2", features = ["fancy"] }
 svg = "0.18"
 nutype = "0.7"
 derive_more = { version = "2.1.1", features = ["full"] }
+ariadne = "0.6.0"
+anyhow = "1.0.102"

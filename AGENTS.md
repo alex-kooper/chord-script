@@ -27,13 +27,16 @@ Layers must stay independent. Parser and render must not depend on each other.
 Use typed errors in library code; use `anyhow` only at the application boundary.
 
 **Library code — `thiserror`:** Each module owns its error types; expose `pub type Result<T>`.
-- Parser may also use `miette` for source spans and pretty reporting
+- Parser renders diagnostics with `ariadne` over `chumsky`'s `Rich` errors (spans, labels, pretty reporting)
 
 **Application boundary — `anyhow`:** Binaries and examples only.
 - `fn main() -> anyhow::Result<()>`
 - Attach context with `.context("...")?` for I/O and CLI boundaries
 
+**Panics (defects):** `panic!`, `unwrap()`, `expect()` are acceptable for programmer mistakes
+(violated invariants, unreachable states) — never for expected errors like bad user input or I/O
+failures. Always include context: prefer `.expect("reason")` over bare `.unwrap()`.
+
 **Do not:**
 - Use `anyhow` inside `src/model/`, `src/parser/`, or `src/render/`
-- Use `unwrap()` / `expect()` on user input or I/O in library code
-- Panic for recoverable or expected failure modes
+- Panic on user input, I/O errors, or any recoverable condition

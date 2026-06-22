@@ -255,4 +255,6 @@ chord_line   = chord_element (SP chord_element)*
 
 - [chordsheet.com](https://chordsheet.com) — inspiration for chord syntax
 - [ChordPro](https://www.chordpro.org/) — another music notation format
+- [iReal Pro](https://www.irealpro.com/) — chord chart app, inspiration for chord-in-bar layout
+- [Typst](https://typst.app/) — modern typesetting system, inspiration for markup syntax
 - Markdown — inspiration for inline formatting
