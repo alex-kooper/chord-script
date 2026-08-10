@@ -1,5 +1,5 @@
 use super::*;
-use crate::model::Line;
+use crate::model::{Chart, Line, LineLevel, TextSpan, TextStyle};
 
 #[test]
 fn test_render_empty_chart() {

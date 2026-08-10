@@ -1,3 +1,3 @@
 mod svg;
 
-pub use svg::{SvgConfig, SvgGenerator};
+pub use svg::{FontStyle, LayoutConfig, SvgConfig, SvgGenerator};
