@@ -121,3 +121,53 @@ fn test_custom_config() {
     let svg = generator.render(&chart);
     assert!(svg.contains("font-size=\"12\""));
 }
+
+#[test]
+fn layout_accumulates_height_from_top_margin() {
+    let config = SvgConfig::default();
+    let margin = config.layout.margin_vertical;
+    let mut layout = super::layout::Layout::new(&config);
+
+    // First placement sits at margin + its own height, not at the bare margin.
+    assert_eq!(layout.place(14.0), margin + 14.0);
+    // Subsequent placements accumulate on top of that.
+    assert_eq!(layout.place(20.0), margin + 14.0 + 20.0);
+}
+
+#[test]
+fn stacked_lines_get_distinct_increasing_y() {
+    let chart = Chart::new(vec![
+        Line {
+            level: LineLevel::Text,
+            left: vec![TextSpan::plain("first")],
+            center: vec![],
+            right: vec![],
+        },
+        Line {
+            level: LineLevel::Text,
+            left: vec![TextSpan::plain("second")],
+            center: vec![],
+            right: vec![],
+        },
+    ]);
+    let svg = SvgGenerator::with_defaults().render(&chart);
+
+    // Defaults: margin_vertical = 28, Text line_height = 14 -> baselines 42 and 56.
+    assert!(svg.contains("y=\"42\""));
+    assert!(svg.contains("y=\"56\""));
+}
+
+#[test]
+fn renders_italic_and_bold_italic_styles() {
+    let chart = Chart::new(vec![Line {
+        level: LineLevel::Text,
+        left: vec![TextSpan::new("italic", TextStyle::Italic)],
+        center: vec![TextSpan::new("both", TextStyle::BoldItalic)],
+        right: vec![],
+    }]);
+    let svg = SvgGenerator::with_defaults().render(&chart);
+
+    // Italic arm emits font-style; BoldItalic arm emits both weight and style.
+    assert!(svg.contains("font-style=\"italic\""));
+    assert!(svg.contains("font-weight=\"bold\""));
+}

@@ -48,23 +48,23 @@ pub struct TextSpan {
 impl TextSpan {
     pub fn new(text: impl Into<String>, style: TextStyle) -> Self {
         Self {
-            text: SpanText::try_new(text.into())
-                .expect("TextSpan text must not be empty"),
+            text: SpanText::try_new(text.into()).expect("TextSpan text must not be empty"),
             style,
         }
     }
 
     pub fn plain(text: impl Into<String>) -> Self {
         Self {
-            text: SpanText::try_new(text.into())
-                .expect("TextSpan text must not be empty"),
+            text: SpanText::try_new(text.into()).expect("TextSpan text must not be empty"),
             style: TextStyle::Normal,
         }
     }
 
     /// Fallible constructor — returns `None` if text is empty after trimming
     pub fn try_new(text: impl Into<String>, style: TextStyle) -> Option<Self> {
-        SpanText::try_new(text.into()).ok().map(|text| Self { text, style })
+        SpanText::try_new(text.into())
+            .ok()
+            .map(|text| Self { text, style })
     }
 
     /// Fallible plain text constructor
