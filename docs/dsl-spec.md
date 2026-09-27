@@ -18,6 +18,22 @@ Chord Script uses a custom plain-text DSL (`.cchart` files) for defining music c
 
 ---
 
+## Line Kinds
+
+Every line's kind is decided by how it starts, in column 0:
+
+| Line starts with | Kind | Section |
+|------------------|------|---------|
+| `===`, `==`, `=`, `-` (then a space or end of line) | Text line | [Text Lines](#text-lines) |
+| `\|` | Chord line | [Chord Lines](#chord-lines) |
+| `#` | Directive | [Directives](#directives) |
+| `//` | Comment | [Comments](#comments) |
+| nothing, or only whitespace | Blank line (ignored) | [Line Rules](#line-rules) |
+
+A line that starts any other way, or starts with an indented prefix, is an error.
+
+---
+
 ## Text Lines
 
 Text lines start with a weight marker: `===`, `==`, `=`, or `-`. The more `=`, the larger the text; `-` is plain text.
@@ -148,8 +164,15 @@ existing charts won't change meaning when notes arrive.
 
 ## Chord Lines
 
-Any line that does **not** start with a text weight marker (`===`, `==`, `=`, or `-`,
-followed by a space or the end of the line) is treated as a chord line.
+> **Status:** draft, not implemented yet. The syntax below comes from
+> chordsheet.com and will be revised for explicit bars.
+
+A chord line starts with `|`. Unlike chordsheet.com, bars are explicit: every
+bar is delimited by `|`, and `%` (repeat previous bar) stands inside a bar:
+
+```
+| Am | % | G | % |
+```
 
 ### Basic Chord Syntax (from chordsheet.com)
 
@@ -159,7 +182,7 @@ followed by a space or the end of the line) is treated as a chord line.
 | `_` | Beat/subdivision separator |
 | `,` | Empty beat / rest |
 | `*` | Repeat previous chord |
-| `%` | Repeat previous bar |
+| `%` | Repeat previous bar (inside a bar: `\| % \|`) |
 | `( ) Nx` | Repeat group N times |
 | `1.` `2.` | First/second endings |
 | `<Chord` | Push (anticipation) |
@@ -181,6 +204,62 @@ Am <> G <> F                      (accented chords)
 Am? Dm?                           (ghost/optional chords)
 (Am G F F _ G) 4x Am fermata      (ending with fermata)
 ```
+
+These examples predate explicit bars and will be rewritten with `|`.
+
+---
+
+## Directives
+
+> **Status:** planned, not implemented yet.
+
+A directive is a layout instruction, not content. It starts with `#` in column
+0, followed by a name and, for directives that take one, a value after a space:
+
+```
+#page_break
+#key Am                (possible future directive)
+```
+
+- One directive per line; the line is only the directive.
+- Names are lowercase `snake_case`.
+- Each directive defines its own value. A missing, extra, or malformed value
+  is an error, e.g. `#page_break now`.
+- An unknown name is an error that lists the known directives.
+- Like every line prefix, `#` must be in column 0; an indented directive is an
+  error. Inside a text line, `#` is plain text.
+
+### Known Directives
+
+| Directive | Value | Effect |
+|-----------|-------|--------|
+| `#page_break` | none | Starts a new page |
+
+### Page Breaks
+
+Content flows onto a new page automatically when the current page is full.
+`#page_break` forces a new page at that point. There is no "smart" layout
+(such as keeping a section title with the content below it): when the
+automatic break lands badly, add a `#page_break` where you want it.
+
+Breaks are literal: a `#page_break` at the start of the chart, at the end, or
+right after another one produces an empty page.
+
+---
+
+## Comments
+
+> **Status:** planned, not implemented yet.
+
+A line starting with `//` in column 0 is a comment. It is not rendered.
+
+```
+// Transcribed from the album version; the live one has a longer intro.
+=== <Rolling in the Deep>
+```
+
+Comments are whole lines only: in `= Verse 1 // quiet`, the `// quiet` is part
+of the text.
 
 ---
 
@@ -277,9 +356,39 @@ Other candidates were rejected: `/italic/` (Org-mode) clashes with slash chords
 like `C/G`, `''italic''` (MediaWiki) with apostrophes, and `<b>`/`<i>` tags with
 the `< >` center.
 
-### Text lines vs chord lines
+### Why does every line kind have its own prefix?
 
-Any line starting with a weight marker (`===`, `==`, `=`, or `-`) is a text line. Everything else is chords. Simple, unambiguous.
+Text lines start with a weight marker, chord lines with `|`, directives with
+`#`, and comments with `//`. The first characters alone decide what a line is,
+so the kinds can never be confused, and new kinds can be added without
+changing the meaning of existing charts. It also makes errors precise: a line
+with no known prefix is reported, instead of being read as chords.
+
+### Why explicit bars (`|`)?
+
+chordsheet.com infers bars from spacing. Explicit bar lines make the form
+visible in the source, give chord lines an unambiguous prefix, and keep `%`
+(repeat previous bar) inside a bar, where it can't be confused with anything
+at the start of a line.
+
+### Why `#` directives and `//` comments?
+
+The DSL already borrows from Typst (`=` headings, `*bold*`, `_italic_`), and
+Typst uses `#` for "this is an instruction, not content" and `//` for comments.
+One shared directive syntax, `#name value`, covers future layout and metadata
+instructions (key, bars per line, columns), so each one doesn't need a new
+symbol.
+
+Alternatives considered:
+- ChordPro's `{new_page}` / `{key: Am}`: the standard in songbook tools, but
+  heavier to type and read.
+- ABC's `%%newpage` with `%` comments: good music precedent, but `%` already
+  means "repeat previous bar" in chord lines.
+- LaTeX's `\newpage`: brace arguments are heavy, and `\` is already the escape
+  character in text.
+
+A Markdown reader might take `#` for a heading, but headings here are `=`, and a
+directive has no space after the `#`.
 
 ---
 
@@ -287,8 +396,14 @@ Any line starting with a weight marker (`===`, `==`, `=`, or `-`) is a text line
 
 ```
 document     = line (NEWLINE line)*
-line         = text_line | chord_line | blank_line
+line         = text_line | chord_line | directive | comment | blank_line
 blank_line   = (SP | TAB)*
+
+directive    = "#" name ( (SP | TAB)+ value )?
+name         = [a-z] [a-z0-9_]*
+value        = any characters except NEWLINE    # trimmed; format set per directive
+
+comment      = "//" (any character except NEWLINE)*
 
 text_line    = weight ( (SP | TAB)+ columns | &(NEWLINE | EOF) )
 weight       = "===" | "==" | "=" | "-"
@@ -306,17 +421,17 @@ reserved     = "[" | "]"                   # error: reserved for notes; kept as 
 
 NEWLINE      = "\r\n" | "\n" | "\r" | VT | FF | NEL | LS | PS
 
-chord_line   = chord_element (SP chord_element)*
-               (repeat_marker)?
-               
-# Chord syntax TBD - largely follows chordsheet.com
+chord_line   = "|" (bar "|")+
+bar          = TBD                          # chords, %, pushes, …
+
+# Chord syntax TBD - largely follows chordsheet.com, with explicit bars
 ```
 
 ---
 
 ## Future Considerations
 
-- **Metadata:** Key, tempo, time signature — as text lines or special syntax?
+- **Metadata:** Key, tempo, time signature — likely as directives (`#key Am`, `#tempo 120`)
 - **Form notation:** AABA structure markers?
 - **Rendering pipeline:** Parse → Model → SVG → PNG/PDF
 - **Editor support:** Syntax highlighting for `.charts` files
