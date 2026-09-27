@@ -1,17 +1,25 @@
-=== <>My Test Song
-== <>By Test Artist
+=== <My Test Song>
+== <*By Test Artist*>
+==
 
-      = Verse 1
-= <Verse 2 - explicitely aligned to the left
-= >Verse 1 - right-aligned
-- This is a *test* song
-- With some **bold** text
+= Verse 1
+= Verse 2 - left-aligned by default
+
+= <> Verse 1 - right-aligned
+
+- This is a _test_ song
+- With some *bold* text, *_bold italic_*, and un_believ_able
+
 = Chorus
+=
+=
 == Chorus
+==
 == Chorus
-- <This is chorus
-- <>This **is** chorus - centered
+- This is chorus
+- <This *is _really_* chorus - centered>
 - This is chorus
 - This        is         chorus     !!!!
-- >Centered chorus - right aligned
-
+- <> Chorus - right aligned
+= Key: Am <Chorus> page 1
+- Escaped \<brackets\>, \*stars\*, snake\_case and \[A\]

@@ -7,6 +7,7 @@
 
 use super::config::SvgConfig;
 use crate::model::{Line, LineLevel, TextSpan, TextStyle};
+use svg::node::Blob;
 use svg::node::element::{TSpan, Text as SvgText};
 
 /// The vertical space a line occupies.
@@ -48,6 +49,10 @@ pub(super) fn render(line: &Line, config: &SvgConfig, y: f64) -> Vec<SvgText> {
 }
 
 /// Render a sequence of styled text spans as a single SVG text element with tspans.
+///
+/// The tspans are joined into one blob: the svg crate puts a newline before
+/// every child element, which SVG would render as a space inside words
+/// (`un_believ_able`).
 fn render_spans(
     spans: &[TextSpan],
     x: f64,
@@ -56,27 +61,28 @@ fn render_spans(
     config: &SvgConfig,
 ) -> SvgText {
     let style = config.font_style_for_level(level);
+    let tspans: String = spans
+        .iter()
+        .map(|span| render_span(span).to_string())
+        .collect();
 
-    let mut text_el = SvgText::new("")
+    SvgText::new("")
         .set("x", x)
         .set("y", y)
         .set("font-family", config.font_family.as_str())
         .set("font-size", style.size)
-        .set("font-weight", style.weight.as_str());
+        .set("font-weight", style.weight.as_str())
+        .add(Blob::new(tspans))
+}
 
-    for span in spans {
-        let text: &str = span.text.as_ref();
-        let mut tspan = TSpan::new(text);
+fn render_span(span: &TextSpan) -> TSpan {
+    let text: &str = span.text.as_ref();
+    let tspan = TSpan::new(text);
 
-        tspan = match span.style {
-            TextStyle::Normal => tspan,
-            TextStyle::Bold => tspan.set("font-weight", "bold"),
-            TextStyle::Italic => tspan.set("font-style", "italic"),
-            TextStyle::BoldItalic => tspan.set("font-weight", "bold").set("font-style", "italic"),
-        };
-
-        text_el = text_el.add(tspan);
+    match span.style {
+        TextStyle::Normal => tspan,
+        TextStyle::Bold => tspan.set("font-weight", "bold"),
+        TextStyle::Italic => tspan.set("font-style", "italic"),
+        TextStyle::BoldItalic => tspan.set("font-weight", "bold").set("font-style", "italic"),
     }
-
-    text_el
 }

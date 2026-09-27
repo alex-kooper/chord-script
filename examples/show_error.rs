@@ -4,10 +4,17 @@ fn main() {
     // Each of these inputs is expected to fail; this example demonstrates the
     // rendered diagnostics rather than propagating a single error.
     let invalid_inputs = vec![
-        ("Unclosed italic", "=== *Unclosed italic marker"),
-        ("Unclosed bold", "=== **Unclosed bold marker"),
-        ("Unclosed bold-italic", "=== ***Unclosed bold-italic marker"),
+        ("Unclosed italic", "=== _Unclosed italic marker"),
+        ("Unclosed bold", "=== *Unclosed bold marker"),
+        ("Crossed markers", "=== *_bold italic*_"),
+        ("Markdown double star", "=== **bold**"),
+        ("Reserved bracket", "= Key of [A] minor"),
         ("No level marker", "This line has no level marker"),
+        ("Unclosed center", "= Left <Center"),
+        ("Stray closing bracket", "= 3 > 2"),
+        ("Second center", "= Left <Center> Right <Again>"),
+        ("Indented marker", "= Verse\n   = Chorus"),
+        ("No space after marker", "===Title"),
     ];
 
     for (description, input) in invalid_inputs {

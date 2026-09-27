@@ -3,12 +3,10 @@
 use nutype::nutype;
 
 /// Non-empty text content for a styled span.
-/// Guaranteed to be trimmed and non-empty after trimming.
-#[nutype(
-    sanitize(trim),
-    validate(not_empty),
-    derive(Debug, Clone, PartialEq, Eq, AsRef)
-)]
+///
+/// Whitespace is kept as-is: the spaces in `a *b* c` live at the edges of the
+/// plain spans, and trimming them would glue the words together.
+#[nutype(validate(not_empty), derive(Debug, Clone, PartialEq, Eq, AsRef))]
 pub struct SpanText(String);
 
 /// Represents a complete music chart
@@ -38,6 +36,34 @@ pub enum TextStyle {
     BoldItalic,
 }
 
+impl TextStyle {
+    /// The style with both `self` and `other` applied, e.g. `Bold` + `Italic`
+    /// is `BoldItalic`. Order does not matter.
+    pub fn combine(self, other: TextStyle) -> TextStyle {
+        Self::from_flags(
+            self.is_bold() || other.is_bold(),
+            self.is_italic() || other.is_italic(),
+        )
+    }
+
+    fn is_bold(self) -> bool {
+        matches!(self, Self::Bold | Self::BoldItalic)
+    }
+
+    fn is_italic(self) -> bool {
+        matches!(self, Self::Italic | Self::BoldItalic)
+    }
+
+    fn from_flags(bold: bool, italic: bool) -> TextStyle {
+        match (bold, italic) {
+            (false, false) => Self::Normal,
+            (true, false) => Self::Bold,
+            (false, true) => Self::Italic,
+            (true, true) => Self::BoldItalic,
+        }
+    }
+}
+
 /// A styled span of text
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TextSpan {
@@ -60,7 +86,7 @@ impl TextSpan {
         }
     }
 
-    /// Fallible constructor — returns `None` if text is empty after trimming
+    /// Fallible constructor — returns `None` if text is empty
     pub fn try_new(text: impl Into<String>, style: TextStyle) -> Option<Self> {
         SpanText::try_new(text.into())
             .ok()

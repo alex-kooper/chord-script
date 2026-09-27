@@ -158,6 +158,46 @@ fn stacked_lines_get_distinct_increasing_y() {
 }
 
 #[test]
+fn empty_line_takes_its_level_height() {
+    let chart = Chart::new(vec![
+        Line::new(LineLevel::Header2, vec![], vec![], vec![]),
+        Line {
+            level: LineLevel::Text,
+            left: vec![TextSpan::plain("after spacer")],
+            center: vec![],
+            right: vec![],
+        },
+    ]);
+    let svg = SvgGenerator::with_defaults().render(&chart);
+
+    // Defaults: margin 28 + empty H2 (20) + Text (14) -> baseline 62.
+    assert!(svg.contains("y=\"62\""));
+    assert_eq!(svg.matches("<text").count(), 1, "empty line draws nothing");
+}
+
+#[test]
+fn spans_are_joined_without_separating_whitespace() {
+    let chart = Chart::new(vec![Line {
+        level: LineLevel::Text,
+        left: vec![
+            TextSpan::plain("un"),
+            TextSpan::new("believ", TextStyle::Italic),
+            TextSpan::plain("able"),
+        ],
+        center: vec![],
+        right: vec![],
+    }]);
+    let svg = SvgGenerator::with_defaults().render(&chart);
+
+    assert!(
+        svg.contains(
+            r#"<tspan>un</tspan><tspan font-style="italic">believ</tspan><tspan>able</tspan>"#
+        ),
+        "tspans must be adjacent: {svg}"
+    );
+}
+
+#[test]
 fn renders_italic_and_bold_italic_styles() {
     let chart = Chart::new(vec![Line {
         level: LineLevel::Text,
