@@ -1,5 +1,6 @@
 // Model module for chord-script domain types
 
+use derive_more::From;
 use nutype::nutype;
 
 /// Non-empty text content for a styled span.
@@ -12,15 +13,29 @@ pub struct SpanText(String);
 /// Represents a complete music chart
 #[derive(Debug, Clone, PartialEq)]
 pub struct Chart {
-    /// The lines that make up the chart content
-    pub lines: Vec<Line>,
+    /// The chart content, top to bottom
+    pub blocks: Vec<Block>,
 }
 
 impl Chart {
-    /// Creates a new chart with the given lines
-    pub fn new(lines: Vec<Line>) -> Self {
-        Self { lines }
+    /// Creates a new chart with the given blocks
+    pub fn new(blocks: Vec<Block>) -> Self {
+        Self { blocks }
     }
+}
+
+/// One top-level element of a chart, in source order.
+///
+/// Blocks record what the author wrote, not how it lands on paper: physical
+/// pages are decided by the renderer, which honors [`Block::PageBreak`] and
+/// also breaks wherever content no longer fits.
+#[derive(Debug, Clone, PartialEq, Eq, From)]
+pub enum Block {
+    /// A line of text
+    Text(Line),
+    /// An explicit request for a new page (`#page_break`)
+    #[from(skip)]
+    PageBreak,
 }
 
 /// Text styling options for span of text
@@ -134,6 +149,11 @@ impl Line {
             center,
             right,
         }
+    }
+
+    /// Whether the line has no text in any column, e.g. a bare `===` spacer.
+    pub fn is_empty(&self) -> bool {
+        self.left.is_empty() && self.center.is_empty() && self.right.is_empty()
     }
 
     /// Create a line with plain text in each column (Normal style)

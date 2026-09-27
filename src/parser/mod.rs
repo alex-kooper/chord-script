@@ -18,7 +18,7 @@ pub use error::{ParseError, Result};
 /// Parse a complete chart from input text.
 pub fn parse_chart(input: &str) -> Result<Chart> {
     match grammar::parse(input) {
-        Ok(lines) => Ok(Chart::new(lines)),
+        Ok(blocks) => Ok(Chart::new(blocks)),
         Err(diagnostics) => Err(ParseError::new(input, diagnostics)),
     }
 }

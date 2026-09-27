@@ -1,9 +1,10 @@
-use chord_script::model::{Chart, Line, LineLevel, TextSpan, TextStyle};
+use anyhow::{Context, Result};
+use chord_script::model::{Block, Chart, Line, LineLevel, TextSpan, TextStyle};
 use chord_script::render::SvgGenerator;
 
-fn main() {
+fn main() -> Result<()> {
     // Create a sample chart
-    let chart = Chart::new(vec![
+    let lines = vec![
         Line {
             level: LineLevel::Header1,
             left: vec![],
@@ -45,12 +46,15 @@ fn main() {
             center: vec![],
             right: vec![TextSpan::plain("Right aligned")],
         },
-    ]);
+    ];
+    let chart = Chart::new(lines.into_iter().map(Block::from).collect());
 
-    // Generate SVG
-    let generator = SvgGenerator::with_defaults();
-    let svg = generator.render(&chart);
-
-    // Print to stdout
-    println!("{}", svg);
+    // Print each page's SVG to stdout
+    let pages = SvgGenerator::with_defaults()
+        .render(&chart)
+        .context("rendering chart")?;
+    for page in pages {
+        println!("{page}");
+    }
+    Ok(())
 }

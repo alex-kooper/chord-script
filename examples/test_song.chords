@@ -1,3 +1,4 @@
+// A test chart exercising text lines, styles, spacers, and a page break.
 === <My Test Song>
 == <*By Test Artist*>
 ==
@@ -21,5 +22,16 @@
 - This is chorus
 - This        is         chorus     !!!!
 - <> Chorus - right aligned
-= Key: Am <Chorus> page 1
+
+#page_break
+===
+===
+===
+=== <The Second Page of Test Song>
+===
+===
+===
+===
+
+= Key: Am <Chorus> page 2
 - Escaped \<brackets\>, \*stars\*, snake\_case and \[A\]

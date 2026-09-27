@@ -15,6 +15,8 @@ fn main() {
         ("Second center", "= Left <Center> Right <Again>"),
         ("Indented marker", "= Verse\n   = Chorus"),
         ("No space after marker", "===Title"),
+        ("Unknown directive", "#pagebreak"),
+        ("Directive with unexpected value", "#page_break now"),
     ];
 
     for (description, input) in invalid_inputs {
@@ -23,7 +25,7 @@ fn main() {
 
         match parse_chart(input) {
             Ok(chart) => {
-                println!("Parsed successfully: {} lines", chart.lines.len());
+                println!("Parsed successfully: {} blocks", chart.blocks.len());
             }
             Err(error) => {
                 print!("{}", error.report(description));

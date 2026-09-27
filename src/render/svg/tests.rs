@@ -1,26 +1,49 @@
 use super::*;
-use crate::model::{Chart, Line, LineLevel, TextSpan, TextStyle};
+use crate::model::{Block, Chart, Line, LineLevel, TextSpan, TextStyle};
+
+mod pagination;
+
+/// A chart made only of text lines.
+fn chart_of(lines: Vec<Line>) -> Chart {
+    Chart::new(lines.into_iter().map(Block::from).collect())
+}
+
+/// A line with spans in the left column only.
+fn left_line(level: LineLevel, spans: Vec<TextSpan>) -> Line {
+    Line::new(level, spans, vec![], vec![])
+}
+
+/// Render a chart that must fit on exactly one page.
+fn render_one(generator: &SvgGenerator, chart: &Chart) -> String {
+    let pages = generator.render(chart).expect("chart should render");
+    assert_eq!(pages.len(), 1, "chart should fit on one page");
+    pages
+        .into_iter()
+        .next()
+        .expect("length checked above")
+        .into()
+}
+
+fn render_default(chart: &Chart) -> String {
+    render_one(&SvgGenerator::with_defaults(), chart)
+}
 
 #[test]
-fn test_render_empty_chart() {
-    let chart = Chart::new(vec![]);
-    let generator = SvgGenerator::with_defaults();
-    let svg = generator.render(&chart);
+fn test_render_empty_chart_is_one_blank_page() {
+    let svg = render_default(&Chart::new(vec![]));
 
     assert!(svg.contains("<svg"));
     assert!(svg.contains("viewBox"));
+    assert!(!svg.contains("<text"));
 }
 
 #[test]
 fn test_render_single_line() {
-    let chart = Chart::new(vec![Line {
-        level: LineLevel::Text,
-        left: vec![TextSpan::plain("Left text")],
-        center: vec![],
-        right: vec![],
-    }]);
-    let generator = SvgGenerator::with_defaults();
-    let svg = generator.render(&chart);
+    let chart = chart_of(vec![left_line(
+        LineLevel::Text,
+        vec![TextSpan::plain("Left text")],
+    )]);
+    let svg = render_default(&chart);
 
     assert!(svg.contains("Left text"));
     assert!(svg.contains("font-family"));
@@ -28,14 +51,13 @@ fn test_render_single_line() {
 
 #[test]
 fn test_render_three_columns() {
-    let chart = Chart::new(vec![Line {
-        level: LineLevel::Header1,
-        left: vec![TextSpan::plain("Left")],
-        center: vec![TextSpan::plain("Center")],
-        right: vec![TextSpan::plain("Right")],
-    }]);
-    let generator = SvgGenerator::with_defaults();
-    let svg = generator.render(&chart);
+    let chart = chart_of(vec![Line::plain_text(
+        LineLevel::Header1,
+        "Left",
+        "Center",
+        "Right",
+    )]);
+    let svg = render_default(&chart);
 
     assert!(svg.contains("Left"));
     assert!(svg.contains("Center"));
@@ -46,17 +68,14 @@ fn test_render_three_columns() {
 
 #[test]
 fn test_render_styled_spans() {
-    let chart = Chart::new(vec![Line {
-        level: LineLevel::Text,
-        left: vec![
+    let chart = chart_of(vec![left_line(
+        LineLevel::Text,
+        vec![
             TextSpan::plain("Normal "),
             TextSpan::new("bold", TextStyle::Bold),
         ],
-        center: vec![],
-        right: vec![],
-    }]);
-    let generator = SvgGenerator::with_defaults();
-    let svg = generator.render(&chart);
+    )]);
+    let svg = render_default(&chart);
 
     assert!(svg.contains("Normal"));
     assert!(svg.contains("bold"));
@@ -65,14 +84,11 @@ fn test_render_styled_spans() {
 
 #[test]
 fn test_header_styling() {
-    let chart = Chart::new(vec![Line {
-        level: LineLevel::Header1,
-        left: vec![TextSpan::plain("Title")],
-        center: vec![],
-        right: vec![],
-    }]);
-    let generator = SvgGenerator::with_defaults();
-    let svg = generator.render(&chart);
+    let chart = chart_of(vec![left_line(
+        LineLevel::Header1,
+        vec![TextSpan::plain("Title")],
+    )]);
+    let svg = render_default(&chart);
 
     assert!(svg.contains("font-weight=\"500\""));
     assert!(svg.contains("font-size=\"18\""));
@@ -109,48 +125,22 @@ fn test_custom_config() {
             line_height: 18.0,
         },
     };
+    let chart = chart_of(vec![left_line(
+        LineLevel::Text,
+        vec![TextSpan::plain("Test")],
+    )]);
 
-    let generator = SvgGenerator::new(config);
-    let chart = Chart::new(vec![Line {
-        level: LineLevel::Text,
-        left: vec![TextSpan::plain("Test")],
-        center: vec![],
-        right: vec![],
-    }]);
-
-    let svg = generator.render(&chart);
+    let svg = render_one(&SvgGenerator::new(config), &chart);
     assert!(svg.contains("font-size=\"12\""));
 }
 
 #[test]
-fn layout_accumulates_height_from_top_margin() {
-    let config = SvgConfig::default();
-    let margin = config.layout.margin_vertical;
-    let mut layout = super::layout::Layout::new(&config);
-
-    // First placement sits at margin + its own height, not at the bare margin.
-    assert_eq!(layout.place(14.0), margin + 14.0);
-    // Subsequent placements accumulate on top of that.
-    assert_eq!(layout.place(20.0), margin + 14.0 + 20.0);
-}
-
-#[test]
 fn stacked_lines_get_distinct_increasing_y() {
-    let chart = Chart::new(vec![
-        Line {
-            level: LineLevel::Text,
-            left: vec![TextSpan::plain("first")],
-            center: vec![],
-            right: vec![],
-        },
-        Line {
-            level: LineLevel::Text,
-            left: vec![TextSpan::plain("second")],
-            center: vec![],
-            right: vec![],
-        },
+    let chart = chart_of(vec![
+        left_line(LineLevel::Text, vec![TextSpan::plain("first")]),
+        left_line(LineLevel::Text, vec![TextSpan::plain("second")]),
     ]);
-    let svg = SvgGenerator::with_defaults().render(&chart);
+    let svg = render_default(&chart);
 
     // Defaults: margin_vertical = 28, Text line_height = 14 -> baselines 42 and 56.
     assert!(svg.contains("y=\"42\""));
@@ -159,16 +149,11 @@ fn stacked_lines_get_distinct_increasing_y() {
 
 #[test]
 fn empty_line_takes_its_level_height() {
-    let chart = Chart::new(vec![
-        Line::new(LineLevel::Header2, vec![], vec![], vec![]),
-        Line {
-            level: LineLevel::Text,
-            left: vec![TextSpan::plain("after spacer")],
-            center: vec![],
-            right: vec![],
-        },
+    let chart = chart_of(vec![
+        left_line(LineLevel::Header2, vec![]),
+        left_line(LineLevel::Text, vec![TextSpan::plain("after spacer")]),
     ]);
-    let svg = SvgGenerator::with_defaults().render(&chart);
+    let svg = render_default(&chart);
 
     // Defaults: margin 28 + empty H2 (20) + Text (14) -> baseline 62.
     assert!(svg.contains("y=\"62\""));
@@ -177,17 +162,15 @@ fn empty_line_takes_its_level_height() {
 
 #[test]
 fn spans_are_joined_without_separating_whitespace() {
-    let chart = Chart::new(vec![Line {
-        level: LineLevel::Text,
-        left: vec![
+    let chart = chart_of(vec![left_line(
+        LineLevel::Text,
+        vec![
             TextSpan::plain("un"),
             TextSpan::new("believ", TextStyle::Italic),
             TextSpan::plain("able"),
         ],
-        center: vec![],
-        right: vec![],
-    }]);
-    let svg = SvgGenerator::with_defaults().render(&chart);
+    )]);
+    let svg = render_default(&chart);
 
     assert!(
         svg.contains(
@@ -199,13 +182,13 @@ fn spans_are_joined_without_separating_whitespace() {
 
 #[test]
 fn renders_italic_and_bold_italic_styles() {
-    let chart = Chart::new(vec![Line {
-        level: LineLevel::Text,
-        left: vec![TextSpan::new("italic", TextStyle::Italic)],
-        center: vec![TextSpan::new("both", TextStyle::BoldItalic)],
-        right: vec![],
-    }]);
-    let svg = SvgGenerator::with_defaults().render(&chart);
+    let chart = chart_of(vec![Line::new(
+        LineLevel::Text,
+        vec![TextSpan::new("italic", TextStyle::Italic)],
+        vec![TextSpan::new("both", TextStyle::BoldItalic)],
+        vec![],
+    )]);
+    let svg = render_default(&chart);
 
     // Italic arm emits font-style; BoldItalic arm emits both weight and style.
     assert!(svg.contains("font-style=\"italic\""));

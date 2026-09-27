@@ -211,8 +211,6 @@ These examples predate explicit bars and will be rewritten with `|`.
 
 ## Directives
 
-> **Status:** planned, not implemented yet.
-
 A directive is a layout instruction, not content. It starts with `#` in column
 0, followed by a name and, for directives that take one, a value after a space:
 
@@ -222,10 +220,13 @@ A directive is a layout instruction, not content. It starts with `#` in column
 ```
 
 - One directive per line; the line is only the directive.
-- Names are lowercase `snake_case`.
+- Names are lowercase `snake_case`. The name runs up to the first whitespace,
+  so `#page-break` is one invalid name, not `#page` followed by `-break`.
 - Each directive defines its own value. A missing, extra, or malformed value
   is an error, e.g. `#page_break now`.
-- An unknown name is an error that lists the known directives.
+- An unknown name is an error that lists the known directives. When a known
+  name differs only in case or punctuation (`#page-break`, `#pagebreak`,
+  `#Page_Break`), the error suggests it.
 - Like every line prefix, `#` must be in column 0; an indented directive is an
   error. Inside a text line, `#` is plain text.
 
@@ -243,13 +244,19 @@ Content flows onto a new page automatically when the current page is full.
 automatic break lands badly, add a `#page_break` where you want it.
 
 Breaks are literal: a `#page_break` at the start of the chart, at the end, or
-right after another one produces an empty page.
+right after another one produces an empty page. Spacer lines (a bare `===`,
+`==`, `=`, or `-`) right after a `#page_break` are kept, so you can push content down
+on purpose.
+
+At an automatic break, spacers that would start the next page are dropped:
+that space was only meant to separate content on the previous page.
+
+A single line taller than the space between a page's margins is an error; the
+chart is not rendered.
 
 ---
 
 ## Comments
-
-> **Status:** planned, not implemented yet.
 
 A line starting with `//` in column 0 is a comment. It is not rendered.
 
@@ -400,7 +407,7 @@ line         = text_line | chord_line | directive | comment | blank_line
 blank_line   = (SP | TAB)*
 
 directive    = "#" name ( (SP | TAB)+ value )?
-name         = [a-z] [a-z0-9_]*
+name         = [a-z] [a-z0-9_]*               # read up to whitespace, then checked
 value        = any characters except NEWLINE    # trimmed; format set per directive
 
 comment      = "//" (any character except NEWLINE)*

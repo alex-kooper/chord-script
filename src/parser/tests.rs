@@ -1,17 +1,27 @@
 use super::parse_chart;
-use crate::model::{Line, LineLevel, TextSpan};
+use crate::model::{Block, Line, LineLevel, TextSpan};
 
+mod directives;
 mod styles;
+
+/// Parse input that must contain only text lines.
+fn parse_lines(input: &str) -> Vec<Line> {
+    let chart = parse_chart(input).unwrap_or_else(|e| panic!("{input:?} should parse: {e}"));
+    chart
+        .blocks
+        .into_iter()
+        .map(|block| match block {
+            Block::Text(line) => line,
+            other => panic!("{input:?} should contain only text lines, found {other:?}"),
+        })
+        .collect()
+}
 
 /// Parse input that must contain exactly one line.
 fn parse_line(input: &str) -> Line {
-    let chart = parse_chart(input).unwrap_or_else(|e| panic!("{input:?} should parse: {e}"));
-    assert_eq!(chart.lines.len(), 1, "{input:?} should be one line");
-    chart
-        .lines
-        .into_iter()
-        .next()
-        .expect("length checked above")
+    let lines = parse_lines(input);
+    assert_eq!(lines.len(), 1, "{input:?} should be one line");
+    lines.into_iter().next().expect("length checked above")
 }
 
 fn texts(spans: &[TextSpan]) -> Vec<&str> {
@@ -30,7 +40,7 @@ fn assert_columns(input: &str, left: &[&str], center: &[&str], right: &[&str]) {
 fn test_parse_empty() {
     let result = parse_chart("");
     assert!(result.is_ok());
-    assert_eq!(result.unwrap().lines.len(), 0);
+    assert_eq!(result.unwrap().blocks.len(), 0);
 }
 
 #[test]
@@ -153,8 +163,8 @@ fn test_parsing_continues_after_reserved_bracket() {
 #[test]
 fn test_bare_markers_are_empty_lines() {
     // Each bare marker is its own empty line; it never takes text from the next line.
-    let chart = parse_chart("===\n==\n=\n-").expect("bare markers should parse");
-    let levels: Vec<LineLevel> = chart.lines.iter().map(|line| line.level).collect();
+    let lines = parse_lines("===\n==\n=\n-");
+    let levels: Vec<LineLevel> = lines.iter().map(|line| line.level).collect();
     assert_eq!(
         levels,
         [
@@ -164,27 +174,22 @@ fn test_bare_markers_are_empty_lines() {
             LineLevel::Text
         ]
     );
-    for line in &chart.lines {
+    for line in &lines {
         assert!(line.left.is_empty() && line.center.is_empty() && line.right.is_empty());
     }
 }
 
 #[test]
 fn test_blank_lines_are_ignored() {
-    let chart = parse_chart("\n= a\n\n   \n\t\n= b\n\n").expect("blank lines should parse");
-    assert_eq!(chart.lines.len(), 2);
+    assert_eq!(parse_lines("\n= a\n\n   \n\t\n= b\n\n").len(), 2);
 }
 
 #[test]
 fn test_crlf_line_endings() {
-    let chart = parse_chart("= a\r\n= b\r\n").expect("CRLF input should parse");
-    assert_eq!(chart.lines.len(), 2);
-    assert_eq!(
-        texts(&chart.lines[0].left),
-        ["a"],
-        "no \\r left in the text"
-    );
-    assert_eq!(texts(&chart.lines[1].left), ["b"]);
+    let lines = parse_lines("= a\r\n= b\r\n");
+    assert_eq!(lines.len(), 2);
+    assert_eq!(texts(&lines[0].left), ["a"], "no \\r left in the text");
+    assert_eq!(texts(&lines[1].left), ["b"]);
 }
 
 #[test]
@@ -193,8 +198,8 @@ fn test_every_line_break_separates_lines() {
         "\r", "\u{000B}", "\u{000C}", "\u{0085}", "\u{2028}", "\u{2029}",
     ] {
         let input = format!("= a{break_char}= b");
-        let chart = parse_chart(&input).unwrap_or_else(|e| panic!("{input:?} should parse: {e}"));
-        let lefts: Vec<Vec<&str>> = chart.lines.iter().map(|line| texts(&line.left)).collect();
+        let lines = parse_lines(&input);
+        let lefts: Vec<Vec<&str>> = lines.iter().map(|line| texts(&line.left)).collect();
         assert_eq!(lefts, [["a"], ["b"]], "lines of {input:?}");
     }
 }
@@ -223,8 +228,8 @@ fn test_parse_multiline() {
 = Intro
 - Piano only";
 
-    let chart = parse_chart(input).expect("multiline chart should parse");
-    let levels: Vec<LineLevel> = chart.lines.iter().map(|line| line.level).collect();
+    let lines = parse_lines(input);
+    let levels: Vec<LineLevel> = lines.iter().map(|line| line.level).collect();
     assert_eq!(
         levels,
         [
@@ -235,11 +240,11 @@ fn test_parse_multiline() {
         ]
     );
 
-    let title = &chart.lines[0];
+    let title = &lines[0];
     assert_eq!(texts(&title.left), ["Song Title"]);
     assert_eq!(texts(&title.center), ["Composer"]);
     assert_eq!(texts(&title.right), ["2024"]);
-    assert_eq!(texts(&chart.lines[3].left), ["Piano only"]);
+    assert_eq!(texts(&lines[3].left), ["Piano only"]);
 }
 
 #[test]

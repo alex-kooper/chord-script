@@ -3,7 +3,7 @@ use chord_script::parser::parse_chart;
 use chord_script::render::SvgGenerator;
 use std::env;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 fn main() -> Result<()> {
     let args: Vec<String> = env::args().collect();
@@ -23,13 +23,21 @@ fn main() -> Result<()> {
         }
     };
 
-    let generator = SvgGenerator::with_defaults();
-    let svg = generator.render(&chart);
+    let pages = SvgGenerator::with_defaults()
+        .render(&chart)
+        .context("rendering chart")?;
 
-    let output_file = Path::new(input_file).with_extension("svg");
-    fs::write(&output_file, svg)
-        .with_context(|| format!("writing SVG to '{}'", output_file.display()))?;
-
-    println!("Successfully rendered: {}", output_file.display());
+    // Temporary naming until the CLI decides on output paths: song-1.svg, song-2.svg, ...
+    for (index, page) in pages.iter().enumerate() {
+        let output_file = page_path(Path::new(input_file), index + 1);
+        fs::write(&output_file, page.as_ref() as &str)
+            .with_context(|| format!("writing SVG to '{}'", output_file.display()))?;
+        println!("Rendered: {}", output_file.display());
+    }
     Ok(())
+}
+
+fn page_path(input: &Path, page_number: usize) -> PathBuf {
+    let stem = input.file_stem().unwrap_or_default().to_string_lossy();
+    input.with_file_name(format!("{stem}-{page_number}.svg"))
 }
