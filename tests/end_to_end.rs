@@ -1,7 +1,7 @@
-//! The public pipeline: chart text in, one SVG document per page out.
+//! The public pipeline: chart text in, SVG pages or one PDF document out.
 
 use chord_script::parser::parse_chart;
-use chord_script::render::SvgGenerator;
+use chord_script::render::{PdfGenerator, SvgGenerator};
 
 fn render(source: &str) -> Vec<String> {
     let chart = parse_chart(source).expect("source should parse");
@@ -30,4 +30,17 @@ fn page_break_splits_the_chart_into_svg_pages() {
 #[test]
 fn chart_without_page_breaks_is_one_page() {
     assert_eq!(render("= one\n= two").len(), 1);
+}
+
+#[test]
+fn chart_renders_to_one_pdf_with_a_page_per_chart_page() {
+    let chart = parse_chart("= Куплет <> *Am*\n#page_break\n= Приспів").expect("should parse");
+    let document = PdfGenerator::with_defaults()
+        .render(&chart)
+        .expect("chart should render");
+    let pdf = String::from_utf8_lossy(document.as_ref());
+
+    assert!(pdf.starts_with("%PDF-"));
+    let pages = pdf.matches("/Type/Page").count() - pdf.matches("/Type/Pages").count();
+    assert_eq!(pages, 2);
 }

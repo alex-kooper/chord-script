@@ -4,13 +4,13 @@ Rust CLI/library for clean, chord-first music charts focused on form and structu
 
 ## Architecture
 
-Parse → Model → SVG → (PNG | PDF, planned)
+Parse → Model → SVG pages | PDF document (PNG planned)
 
 | Layer | Path | Responsibility |
 |-------|------|----------------|
 | Parser | `src/parser/` | Text → `Chart`; no rendering |
 | Model | `src/model/` | Pure domain types; no I/O |
-| Render | `src/render/` | `Chart` → SVG |
+| Render | `src/render/` | `Chart` → SVG pages or one PDF; shared config, errors, bundled fonts |
 
 Layers must stay independent. Parser and render must not depend on each other.
 

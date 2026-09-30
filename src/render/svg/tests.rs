@@ -1,5 +1,6 @@
 use super::*;
 use crate::model::{Block, Chart, Line, LineLevel, TextSpan, TextStyle};
+use crate::render::{FontStyle, LayoutConfig};
 
 mod pagination;
 
@@ -90,13 +91,14 @@ fn test_header_styling() {
     )]);
     let svg = render_default(&chart);
 
-    assert!(svg.contains("font-weight=\"500\""));
+    assert!(svg.contains("font-family=\"Noto Sans, sans-serif\""));
+    assert!(svg.contains("font-weight=\"normal\""));
     assert!(svg.contains("font-size=\"18\""));
 }
 
 #[test]
 fn test_custom_config() {
-    let config = SvgConfig {
+    let config = RenderConfig {
         layout: LayoutConfig {
             width: 1000.0,
             height: 800.0,

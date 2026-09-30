@@ -3,7 +3,7 @@
 == <*By Test Artist*>
 ==
 
-= Verse 1
+== Verse 1
 = Verse 2 - left-aligned by default
 
 = <> Verse 1 - right-aligned
@@ -35,3 +35,7 @@
 
 = Key: Am <Chorus> page 2
 - Escaped \<brackets\>, \*stars\*, snake\_case and \[A\]
+
+= Кириличні коментарі
+- Українська: Ґ ґ Є є І і Ї ї, *жирний* і _курсив_
+- Русский: Съешь же ещё этих мягких французских булок <> *Ё ё*

@@ -1,4 +1,5 @@
-//! Rendering configuration: page geometry and per-level font styling.
+//! Rendering configuration shared by every output format: page geometry and
+//! per-level font styling.
 //!
 //! These types describe *how* a chart is drawn (sizes, weights, margins) and
 //! carry no rendering logic beyond looking up the style for a line level.
@@ -13,7 +14,7 @@ pub struct FontStyle {
     pub line_height: f64,
 }
 
-/// Layout configuration (page dimensions and margins)
+/// Layout configuration (page dimensions and margins), in points
 #[derive(Debug, Clone)]
 pub struct LayoutConfig {
     pub width: f64,
@@ -34,13 +35,18 @@ impl Default for LayoutConfig {
     }
 }
 
-/// Configuration for SVG rendering
+/// How a chart is drawn, whatever the output format.
 #[derive(Debug, Clone)]
-pub struct SvgConfig {
+pub struct RenderConfig {
     // Layout
     pub layout: LayoutConfig,
 
-    // Font (single font family for all text)
+    /// Font family list for all text, in CSS syntax and tried in order, e.g.
+    /// `Noto Sans, sans-serif`.
+    ///
+    /// SVG viewers may use any font installed where the SVG is opened. PDF
+    /// output can only use the bundled Noto Sans (also reached through
+    /// `sans-serif`), and fails if no family in the list is bundled.
     pub font_family: String,
 
     // Font styles per level
@@ -50,40 +56,31 @@ pub struct SvgConfig {
     pub text: FontStyle,
 }
 
-impl Default for SvgConfig {
+impl Default for RenderConfig {
     fn default() -> Self {
+        // Every level uses the regular weight: the bundled font has only
+        // regular and bold faces, and a regular header keeps inline `*bold*`
+        // visible inside it.
+        let regular = |size: f64, line_height: f64| FontStyle {
+            size,
+            weight: "normal".to_string(),
+            line_height,
+        };
+
         Self {
             layout: LayoutConfig::default(),
-
-            // Font (single font family for all text)
-            font_family: "sans-serif".to_string(),
-
-            // Font styles per level
-            header1: FontStyle {
-                size: 18.0,
-                weight: "500".to_string(),
-                line_height: 24.0,
-            },
-            header2: FontStyle {
-                size: 14.0,
-                weight: "450".to_string(),
-                line_height: 20.0,
-            },
-            header3: FontStyle {
-                size: 11.0,
-                weight: "420".to_string(),
-                line_height: 16.0,
-            },
-            text: FontStyle {
-                size: 10.0,
-                weight: "normal".to_string(),
-                line_height: 14.0,
-            },
+            // The generic fallback keeps SVG viewers without Noto Sans on a
+            // sans-serif font; they would otherwise default to a serif one.
+            font_family: format!("{}, sans-serif", super::fonts::FAMILY),
+            header1: regular(18.0, 24.0),
+            header2: regular(14.0, 20.0),
+            header3: regular(11.0, 16.0),
+            text: regular(10.0, 14.0),
         }
     }
 }
 
-impl SvgConfig {
+impl RenderConfig {
     /// The font style to use for a given line level.
     pub fn font_style_for_level(&self, level: LineLevel) -> &FontStyle {
         match level {

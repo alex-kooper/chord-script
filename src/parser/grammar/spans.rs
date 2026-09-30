@@ -1,6 +1,6 @@
 //! Inline text: plain and styled spans, escapes, and column trimming.
 
-use crate::model::{TextSpan, TextStyle};
+use crate::model::{TextSpan, TextStyle, is_displayable};
 use chumsky::extra;
 use chumsky::prelude::*;
 use chumsky::text::Char;
@@ -81,13 +81,34 @@ fn plain<'a>() -> impl Parser<'a, &'a str, TextSpan, extra::Err<Rich<'a, char>>>
 /// kept literally, as in Markdown.
 fn text<'a>() -> impl Parser<'a, &'a str, String, extra::Err<Rich<'a, char>>> {
     let escape = just('\\').ignore_then(one_of(r"\*_<>[]"));
-    let plain_char = any().filter(|c: &char| !c.is_newline() && !"*_<>[]".contains(*c));
+    let plain_char =
+        any().filter(|c: &char| !c.is_newline() && is_displayable(*c) && !"*_<>[]".contains(*c));
     let character = escape
         .or(reserved_bracket())
+        .or(undisplayable())
         .or(plain_char)
         .labelled("text");
 
     character.repeated().at_least(1).collect()
+}
+
+/// A character that cannot appear in chart text, such as a control character.
+///
+/// Reported as an error. It is replaced so the span stays valid while the rest
+/// of the chart is still checked; the parse fails either way.
+fn undisplayable<'a>() -> impl Parser<'a, &'a str, char, extra::Err<Rich<'a, char>>> {
+    any()
+        .filter(|c: &char| !c.is_newline() && !is_displayable(*c))
+        .validate(|c: char, e, emitter| {
+            emitter.emit(Rich::custom(
+                e.span(),
+                format!(
+                    "unprintable character U+{:04X} is not allowed in text",
+                    u32::from(c)
+                ),
+            ));
+            char::REPLACEMENT_CHARACTER
+        })
 }
 
 /// An unescaped `[` or `]`, reserved for future note syntax.

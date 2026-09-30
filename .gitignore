@@ -24,3 +24,10 @@ target
 # Added by cargo
 
 /target
+
+# macOS Finder metadata
+.DS_Store
+
+# Rendered example output; regenerate with `cargo run --example parse_and_render`
+examples/*.svg
+examples/*.pdf

@@ -5,8 +5,8 @@
 //! Keeping both behaviors here means adding a new line kind later touches one
 //! place: its height and its drawing sit side by side.
 
-use super::config::SvgConfig;
 use crate::model::{Line, LineLevel, TextSpan, TextStyle};
+use crate::render::RenderConfig;
 use svg::node::Blob;
 use svg::node::element::{TSpan, Text as SvgText};
 
@@ -14,13 +14,13 @@ use svg::node::element::{TSpan, Text as SvgText};
 ///
 /// Today this is just the per-level line height; when richer line kinds arrive
 /// (e.g. chord lines with a bar row plus a chord row) this becomes kind-specific.
-pub(super) fn height_of(line: &Line, config: &SvgConfig) -> f64 {
+pub(super) fn height_of(line: &Line, config: &RenderConfig) -> f64 {
     config.line_height_for_level(line.level)
 }
 
 /// Render a line at the given baseline `y`, producing one text element per
 /// non-empty column (left / center / right).
-pub(super) fn render(line: &Line, config: &SvgConfig, y: f64) -> Vec<SvgText> {
+pub(super) fn render(line: &Line, config: &RenderConfig, y: f64) -> Vec<SvgText> {
     let page = &config.layout;
 
     // The three columns differ only in their spans, x-position, and anchor.
@@ -58,7 +58,7 @@ fn render_spans(
     x: f64,
     y: f64,
     level: LineLevel,
-    config: &SvgConfig,
+    config: &RenderConfig,
 ) -> SvgText {
     let style = config.font_style_for_level(level);
     let tspans: String = spans

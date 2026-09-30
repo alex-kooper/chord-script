@@ -134,6 +134,14 @@ Styles nest one level into each other and combine, so the order doesn't matter:
 
 Spaces around styled text are kept as written: `a *b* c` renders as "a **b** c".
 Only the spaces at the edges of each column (e.g. around `<` and `>`) are trimmed.
+Inside a column, a run of spaces renders as a single space, so `a     b` renders
+as "a b".
+
+Text may use any script, but unprintable characters (control characters
+other than tab) are an error. PDF output draws text only in its bundled font,
+which covers Latin, Cyrillic, and Greek; any other character, such as an emoji,
+a CJK character, or a typed `♭`, is an error rather than silently missing from
+the PDF. Sharps and flats will come from the planned note syntax (`[Bb]`).
 
 A style cannot nest into itself: inside `*…*`, the next `*` closes the bold.
 Unclosed or crossed markers (`*bold`, `*_x*_`) are parse errors, and so is
@@ -440,7 +448,7 @@ bar          = TBD                          # chords, %, pushes, …
 
 - **Metadata:** Key, tempo, time signature — likely as directives (`#key Am`, `#tempo 120`)
 - **Form notation:** AABA structure markers?
-- **Rendering pipeline:** Parse → Model → SVG → PNG/PDF
+- **Rendering pipeline:** Parse → Model → SVG pages or one PDF; PNG later
 - **Editor support:** Syntax highlighting for `.charts` files
 
 ---

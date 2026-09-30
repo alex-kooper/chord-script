@@ -1,24 +1,20 @@
 //! SVG rendering of a [`Chart`].
 //!
-//! Configuration lives in [`config`]; pagination and vertical placement in
-//! [`layout`]; the drawing of individual lines in [`line`]. This module owns
-//! the generator that wires them together: it paginates the chart, then builds
-//! one SVG document per page.
+//! Pagination and vertical placement live in [`layout`]; the drawing of
+//! individual lines in [`line`]. This module owns the generator that wires
+//! them together: it paginates the chart, then builds one SVG document per
+//! page.
 
+use super::{RenderConfig, Result};
 use crate::model::Chart;
 use derive_more::{AsRef, Display, Into};
 use svg::Document;
 
-mod config;
-mod error;
 mod layout;
 mod line;
 
 #[cfg(test)]
 mod tests;
-
-pub use config::{FontStyle, LayoutConfig, SvgConfig};
-pub use error::{RenderError, Result};
 
 use layout::Page;
 
@@ -29,18 +25,18 @@ pub struct SvgPage(String);
 
 /// SVG generator that renders charts to SVG format
 pub struct SvgGenerator {
-    config: SvgConfig,
+    config: RenderConfig,
 }
 
 impl SvgGenerator {
     /// Create a new SVG generator with the given configuration
-    pub fn new(config: SvgConfig) -> Self {
+    pub fn new(config: RenderConfig) -> Self {
         Self { config }
     }
 
     /// Create a new SVG generator with default configuration
     pub fn with_defaults() -> Self {
-        Self::new(SvgConfig::default())
+        Self::new(RenderConfig::default())
     }
 
     /// Render a chart to SVG, one document per page.
@@ -60,7 +56,7 @@ impl SvgGenerator {
         let document = Document::new()
             .set(
                 "viewBox",
-                format!("0 0 {} {}", geometry.width as i32, geometry.height as i32),
+                format!("0 0 {} {}", geometry.width, geometry.height),
             )
             .set("width", format!("{}pt", geometry.width))
             .set("height", format!("{}pt", geometry.height));

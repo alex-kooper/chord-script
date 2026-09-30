@@ -1,7 +1,7 @@
 use super::super::layout::{Page, paginate};
 use super::{chart_of, left_line};
 use crate::model::{Block, Chart, Line, LineLevel, TextSpan};
-use crate::render::svg::{LayoutConfig, RenderError, SvgConfig, SvgGenerator};
+use crate::render::{LayoutConfig, RenderConfig, RenderError, SvgGenerator};
 
 /// A 100pt-tall page with 10pt margins: baselines may go down to y = 90, and
 /// 80pt fit between the margins.
@@ -128,12 +128,12 @@ fn empty_line_taller_than_a_page_is_described_by_its_level() {
 #[test]
 fn render_fails_when_a_line_cannot_fit_on_any_page() {
     // 20pt between the margins; a default H1 line is 24pt tall.
-    let config = SvgConfig {
+    let config = RenderConfig {
         layout: LayoutConfig {
             height: 40.0,
             ..small_page()
         },
-        ..SvgConfig::default()
+        ..RenderConfig::default()
     };
     let chart = chart_of(vec![left_line(
         LineLevel::Header1,

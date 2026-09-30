@@ -5,9 +5,8 @@
 //! margin. It knows only vertical space: each line's height comes from the
 //! caller, so how lines are drawn stays in [`super::line`].
 
-use super::config::LayoutConfig;
-use super::error::{RenderError, Result};
 use crate::model::{Block, Line};
+use crate::render::{LayoutConfig, RenderError, Result};
 
 /// A line positioned on a page at the baseline `y` it is drawn at.
 #[derive(Debug, Clone, Copy, PartialEq)]

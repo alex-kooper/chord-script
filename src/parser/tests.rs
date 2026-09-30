@@ -1,6 +1,7 @@
 use super::parse_chart;
 use crate::model::{Block, Line, LineLevel, TextSpan};
 
+mod characters;
 mod directives;
 mod styles;
 
