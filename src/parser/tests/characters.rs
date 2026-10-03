@@ -1,9 +1,7 @@
-use super::{parse_chart, parse_line, texts};
+use super::{parse_chart, parse_line, report, texts};
 
 fn error_report(input: &str) -> String {
-    parse_chart(input)
-        .expect_err("input should be rejected")
-        .report("test")
+    report(&parse_chart(input).expect_err("input should be rejected"))
 }
 
 #[test]
@@ -15,8 +13,8 @@ fn test_control_character_in_text_is_an_error() {
         ("= a\u{7F}", "U+007F"),
     ] {
         let error = parse_chart(input).expect_err("control characters are rejected");
-        assert_eq!(error.len(), 1, "{input:?}: {}", error.report("test"));
-        let report = error.report("test");
+        assert_eq!(error.len(), 1, "{input:?}: {}", report(&error));
+        let report = report(&error);
         assert!(
             report.contains(&format!("unprintable character {code}")),
             "{report}"
@@ -41,7 +39,7 @@ fn test_noncharacter_is_an_error() {
 #[test]
 fn test_parsing_continues_after_control_character() {
     let error = parse_chart("= a\u{1}\n= *unclosed").expect_err("both lines are bad");
-    assert_eq!(error.len(), 2, "{}", error.report("test"));
+    assert_eq!(error.len(), 2, "{}", report(&error));
 }
 
 #[test]

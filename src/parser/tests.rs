@@ -1,9 +1,13 @@
-use super::parse_chart;
+use super::{ParseError, ReportStyle, parse_chart};
 use crate::model::{Block, Line, LineLevel, TextSpan};
 
 mod characters;
 mod directives;
 mod styles;
+
+fn report(error: &ParseError) -> String {
+    error.report("test", ReportStyle::Plain)
+}
 
 /// Parse input that must contain only text lines.
 fn parse_lines(input: &str) -> Vec<Line> {
@@ -138,7 +142,7 @@ fn test_unescaped_backslash_is_literal() {
 #[test]
 fn test_square_brackets_are_reserved() {
     let error = parse_chart("= Key of [A]").expect_err("`[` should be rejected");
-    assert!(error.report("test").contains("reserved for notes"));
+    assert!(report(&error).contains("reserved for notes"));
     assert!(parse_chart("= a ] b").is_err());
 }
 
@@ -147,7 +151,7 @@ fn test_square_brackets_are_reserved_inside_styles() {
     for input in ["= *see [A]*", "= _see [A]_", "= *bold _see [A]_*"] {
         let error = parse_chart(input).expect_err("brackets inside styles should be rejected");
         assert!(
-            error.report("test").contains("reserved for notes"),
+            report(&error).contains("reserved for notes"),
             "reserved-bracket message for {input:?}"
         );
     }
@@ -156,7 +160,7 @@ fn test_square_brackets_are_reserved_inside_styles() {
 #[test]
 fn test_parsing_continues_after_reserved_bracket() {
     let error = parse_chart("= *see [A]*\n= *unclosed").expect_err("both lines are invalid");
-    let report = error.report("test");
+    let report = report(&error);
     assert!(report.contains("reserved for notes"), "{report}");
     assert!(report.contains("found end of input"), "{report}");
 }
@@ -208,7 +212,7 @@ fn test_every_line_break_separates_lines() {
 #[test]
 fn test_indented_marker_is_an_error() {
     let error = parse_chart("= a\n  = b").expect_err("indented marker should be rejected");
-    assert!(error.report("test").contains("beginning of the line"));
+    assert!(report(&error).contains("beginning of the line"));
 }
 
 #[test]
@@ -258,8 +262,16 @@ fn test_parse_invalid_input_returns_error() {
         !error.is_empty(),
         "error should carry at least one diagnostic"
     );
-    assert!(
-        !error.report("test").is_empty(),
-        "report should produce output"
-    );
+    assert!(!report(&error).is_empty(), "report should produce output");
+}
+
+#[test]
+fn test_report_style_controls_colour_codes() {
+    let error = parse_chart("= *unclosed").expect_err("unclosed bold should be rejected");
+    let plain = error.report("song.chords", ReportStyle::Plain);
+    let colored = error.report("song.chords", ReportStyle::Colored);
+
+    assert!(plain.contains("song.chords"), "{plain}");
+    assert!(!plain.contains('\u{1B}'), "plain report has no escapes");
+    assert!(colored.contains('\u{1B}'), "colored report has escapes");
 }

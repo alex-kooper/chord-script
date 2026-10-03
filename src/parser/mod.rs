@@ -13,7 +13,7 @@ mod grammar;
 #[cfg(test)]
 mod tests;
 
-pub use error::{ParseError, Result};
+pub use error::{ParseError, ReportStyle, Result};
 
 /// Parse a complete chart from input text.
 pub fn parse_chart(input: &str) -> Result<Chart> {

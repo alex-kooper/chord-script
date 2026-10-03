@@ -1,4 +1,4 @@
-use super::{parse_chart, parse_lines};
+use super::{parse_chart, parse_lines, report};
 use crate::model::{Block, LineLevel};
 
 /// The kind of each block, as a short label: `"text"` or `"page_break"`.
@@ -15,9 +15,7 @@ fn kinds(input: &str) -> Vec<&'static str> {
 }
 
 fn error_report(input: &str) -> String {
-    parse_chart(input)
-        .expect_err("input should be rejected")
-        .report("test")
+    report(&parse_chart(input).expect_err("input should be rejected"))
 }
 
 #[test]
@@ -91,9 +89,9 @@ fn test_bare_hash_expects_a_directive_name() {
 fn test_mistyped_name_is_one_error_with_a_suggestion() {
     for input in ["#page-break", "#page_break!", "#Page-Break"] {
         let error = parse_chart(input).expect_err("mistyped name should be rejected");
-        assert_eq!(error.len(), 1, "{input}: {}", error.report("test"));
+        assert_eq!(error.len(), 1, "{input}: {}", report(&error));
 
-        let report = error.report("test");
+        let report = report(&error);
         assert!(report.contains("invalid directive name"), "{report}");
         assert!(report.contains("did you mean `#page_break`?"), "{report}");
     }

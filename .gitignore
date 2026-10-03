@@ -28,6 +28,6 @@ target
 # macOS Finder metadata
 .DS_Store
 
-# Rendered example output; regenerate with `cargo run --example parse_and_render`
+# Rendered example output; regenerate with `chords examples/test_song.chords`
 examples/*.svg
 examples/*.pdf

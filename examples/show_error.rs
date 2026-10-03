@@ -1,4 +1,4 @@
-use chord_script::parser::parse_chart;
+use chord_script::parser::{ReportStyle, parse_chart};
 
 fn main() {
     // Each of these inputs is expected to fail; this example demonstrates the
@@ -28,7 +28,7 @@ fn main() {
                 println!("Parsed successfully: {} blocks", chart.blocks.len());
             }
             Err(error) => {
-                print!("{}", error.report(description));
+                print!("{}", error.report(description, ReportStyle::Colored));
             }
         }
         println!();

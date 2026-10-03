@@ -11,8 +11,10 @@ Parse → Model → SVG pages | PDF document (PNG planned)
 | Parser | `src/parser/` | Text → `Chart`; no rendering |
 | Model | `src/model/` | Pure domain types; no I/O |
 | Render | `src/render/` | `Chart` → SVG pages or one PDF; shared config, errors, bundled fonts |
+| CLI | `src/cli/` | The `chords` binary: arguments, output paths, diagnostics; part of the binary, not the library |
 
-Layers must stay independent. Parser and render must not depend on each other.
+Layers must stay independent. Parser and render must not depend on each other. The CLI uses the
+other layers; nothing depends on the CLI.
 
 ## Coding standards
 
@@ -21,6 +23,7 @@ Layers must stay independent. Parser and render must not depend on each other.
 - Prefer domain-specific types over primitives (`String`, `usize`, etc.), especially in the model layer. Use newtypes, enums, and structs to make invalid states unrepresentable.
 - Use [`derive_more`](https://docs.rs/derive_more) to reduce boilerplate on structs and enums (`From`, `Display`, `Into`, `AsRef`, etc.).
 - Use [`nutype`](https://docs.rs/nutype) for validated newtypes with sanitization and constraints (e.g. non-empty strings).
+- Inline `#[cfg(test)] mod tests { ... }` is fine while the file stays within 300 lines. When tests push a file over the limit, move them to a separate `tests.rs` (or a `tests/` directory for larger suites) next to the code under test rather than splitting the code. Integration tests go in the top-level `tests/`.
 
 ### Error handling
 
@@ -30,7 +33,7 @@ Use typed errors in library code; use `anyhow` only at the application boundary.
 - Parser renders diagnostics with `ariadne` over `chumsky`'s `Rich` errors (spans, labels, pretty reporting)
 
 **Application boundary — `anyhow`:** Binaries and examples only.
-- `fn main() -> anyhow::Result<()>`
+- `fn main() -> anyhow::Result<()>`; the `chords` CLI reports errors itself and returns `ExitCode`
 - Attach context with `.context("...")?` for I/O and CLI boundaries
 
 **Panics (defects):** `panic!`, `unwrap()`, `expect()` are acceptable for programmer mistakes
