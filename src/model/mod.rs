@@ -3,6 +3,10 @@
 use derive_more::From;
 use nutype::nutype;
 
+mod note;
+
+pub use note::{Accidental, Letter, Note, Semitones, SemitonesError, Spelling, Transposition};
+
 /// Non-empty text content for a styled span, made only of characters for
 /// which [`is_displayable`] holds.
 ///
