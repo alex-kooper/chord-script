@@ -20,8 +20,8 @@ pub enum Letter {
 }
 
 impl Letter {
-    fn semitones_above_c(self) -> i32 {
-        match self {
+    fn semitones_above_c(self) -> Semitones {
+        Semitones::wrapping(match self {
             Self::C => 0,
             Self::D => 2,
             Self::E => 4,
@@ -29,7 +29,7 @@ impl Letter {
             Self::G => 7,
             Self::A => 9,
             Self::B => 11,
-        }
+        })
     }
 }
 
@@ -40,6 +40,17 @@ pub enum Accidental {
     Flat,
     #[display("#")]
     Sharp,
+}
+
+impl Accidental {
+    /// How far the accidental moves its letter; a flat's step down is the
+    /// rest of the octave up.
+    fn shift(self) -> Semitones {
+        Semitones::wrapping(match self {
+            Self::Flat => -1,
+            Self::Sharp => 1,
+        })
+    }
 }
 
 /// A note spelled as written: `Bb` and `A#` are different notes that sound
@@ -74,12 +85,9 @@ impl Note {
 
     /// Distance up from C, e.g. 10 for `Bb`, 11 for `Cb`, 0 for `B#`.
     pub fn semitones_above_c(self) -> Semitones {
-        let shift = match self.accidental {
-            None => 0,
-            Some(Accidental::Flat) => -1,
-            Some(Accidental::Sharp) => 1,
-        };
-        Semitones::wrapping(self.letter.semitones_above_c() + shift)
+        let letter = self.letter.semitones_above_c();
+        self.accidental
+            .map_or(letter, |accidental| letter + accidental.shift())
     }
 
     /// The note moved by `transposition`.
