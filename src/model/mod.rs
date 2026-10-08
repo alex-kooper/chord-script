@@ -3,8 +3,10 @@
 use derive_more::From;
 use nutype::nutype;
 
+mod chord;
 mod note;
 
+pub use chord::{Chord, ChordQuality, ChordQualityError, is_quality_char};
 pub use note::{Accidental, Letter, Note, Semitones, SemitonesError, Spelling, Transposition};
 
 /// Non-empty text content for a styled span, made only of characters for
