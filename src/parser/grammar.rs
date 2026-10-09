@@ -4,6 +4,11 @@
 //! hands back owned model values or owned diagnostics, keeping the parsing
 //! library an implementation detail of `parser`.
 
+#[cfg_attr(
+    not(test),
+    expect(dead_code, reason = "used once text lines accept `[chord]`")
+)]
+mod chord;
 mod directive;
 mod spans;
 
