@@ -19,6 +19,9 @@ use chumsky::prelude::*;
 use chumsky::text::{inline_whitespace, newline};
 use spans::spans;
 
+/// What every parser in the grammar carries besides its output: rich errors.
+type Extra<'a> = extra::Err<Rich<'a, char>>;
+
 /// Parse source text into blocks, collecting every diagnostic on failure.
 pub(super) fn parse(input: &str) -> Result<Vec<Block>, Vec<Diagnostic>> {
     chart_parser()
@@ -41,7 +44,7 @@ fn diagnostic_from_rich(error: Rich<'_, char>) -> Diagnostic {
 
 /// A chart is a sequence of source lines separated by newlines. Nothing in the
 /// grammar crosses a newline, so every block ends where its source line ends.
-fn chart_parser<'a>() -> impl Parser<'a, &'a str, Vec<Block>, extra::Err<Rich<'a, char>>> {
+fn chart_parser<'a>() -> impl Parser<'a, &'a str, Vec<Block>, Extra<'a>> {
     source_line()
         .separated_by(newline().labelled("end of line"))
         .collect::<Vec<Option<Block>>>()
@@ -54,7 +57,7 @@ fn chart_parser<'a>() -> impl Parser<'a, &'a str, Vec<Block>, extra::Err<Rich<'a
 ///
 /// A line's prefix must sit in column 0; an indented one is reported but still
 /// parsed, so the rest of the chart is checked too.
-fn source_line<'a>() -> impl Parser<'a, &'a str, Option<Block>, extra::Err<Rich<'a, char>>> {
+fn source_line<'a>() -> impl Parser<'a, &'a str, Option<Block>, Extra<'a>> {
     let indent = inline_whitespace().at_least(1).validate(|(), e, emitter| {
         emitter.emit(Rich::custom(
             e.span(),
@@ -69,7 +72,7 @@ fn source_line<'a>() -> impl Parser<'a, &'a str, Option<Block>, extra::Err<Rich<
 }
 
 /// The part of a line after any indentation, dispatched on its prefix.
-fn line_content<'a>() -> impl Parser<'a, &'a str, Option<Block>, extra::Err<Rich<'a, char>>> {
+fn line_content<'a>() -> impl Parser<'a, &'a str, Option<Block>, Extra<'a>> {
     line_parser()
         .map(|line| Some(Block::Text(line)))
         .or(directive::directive())
@@ -80,7 +83,7 @@ fn line_content<'a>() -> impl Parser<'a, &'a str, Option<Block>, extra::Err<Rich
 ///
 /// The marker must be followed by a space, or end the line on its own. A bare
 /// marker (`===`) is an empty line of that level's height.
-fn line_parser<'a>() -> impl Parser<'a, &'a str, Line, extra::Err<Rich<'a, char>>> {
+fn line_parser<'a>() -> impl Parser<'a, &'a str, Line, Extra<'a>> {
     let header1 = just("===").to(LineLevel::Header1);
     let header2 = just("==").to(LineLevel::Header2);
     let header3 = just("=").to(LineLevel::Header3);
@@ -116,7 +119,7 @@ type Columns = (Vec<TextSpan>, Vec<TextSpan>, Vec<TextSpan>);
 /// The `<…>` center is optional and appears at most once. Text before it is
 /// left-aligned, text after it is right-aligned, and `<>` is an empty center
 /// that still separates left from right.
-fn columns_parser<'a>() -> impl Parser<'a, &'a str, Columns, extra::Err<Rich<'a, char>>> {
+fn columns_parser<'a>() -> impl Parser<'a, &'a str, Columns, Extra<'a>> {
     let center = spans()
         .delimited_by(just('<'), just('>'))
         .labelled("centered text in < >");

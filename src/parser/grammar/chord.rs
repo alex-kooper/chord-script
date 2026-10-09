@@ -5,14 +5,14 @@
 //! the surrounding syntax (`]`, a space, `|`, the `)` of an optional `(Am7)`)
 //! decides what may follow.
 
+use super::Extra;
 use crate::model::{
     Accidental, Chord, ChordQuality, ChordQualityError, Letter, Note, is_quality_char,
 };
-use chumsky::extra;
 use chumsky::prelude::*;
 
 /// A whole chord symbol.
-pub(super) fn chord<'a>() -> impl Parser<'a, &'a str, Chord, extra::Err<Rich<'a, char>>> {
+pub(super) fn chord<'a>() -> impl Parser<'a, &'a str, Chord, Extra<'a>> {
     note()
         .then(quality().or_not().map(Option::flatten))
         .then(bass().or_not())
@@ -21,7 +21,7 @@ pub(super) fn chord<'a>() -> impl Parser<'a, &'a str, Chord, extra::Err<Rich<'a,
 
 /// `/` and a single note. Quality characters glued to the bass, as in `C/E7`,
 /// are reported: nothing may follow a chord without a separator.
-fn bass<'a>() -> impl Parser<'a, &'a str, Note, extra::Err<Rich<'a, char>>> {
+fn bass<'a>() -> impl Parser<'a, &'a str, Note, Extra<'a>> {
     let trailing = any()
         .filter(|c: &char| is_quality_char(*c) && *c != ')')
         .repeated()
@@ -42,7 +42,7 @@ fn bass<'a>() -> impl Parser<'a, &'a str, Note, extra::Err<Rich<'a, char>>> {
 /// An uppercase letter and an optional `b` or `#`, e.g. `C`, `Bb`, `F#`.
 ///
 /// The accidental is read greedily, so `Cb5` is C-flat with quality `5`.
-pub(super) fn note<'a>() -> impl Parser<'a, &'a str, Note, extra::Err<Rich<'a, char>>> {
+pub(super) fn note<'a>() -> impl Parser<'a, &'a str, Note, Extra<'a>> {
     let letter = choice((
         just('C').to(Letter::C),
         just('D').to(Letter::D),
@@ -68,7 +68,7 @@ pub(super) fn note<'a>() -> impl Parser<'a, &'a str, Note, extra::Err<Rich<'a, c
 /// without its `(` is not part of the quality, so `(Am7)` ends the chord at
 /// the `)`. An invalid quality is reported and yields `None`; the parse fails
 /// either way, but the rest of the input is still checked.
-fn quality<'a>() -> impl Parser<'a, &'a str, Option<ChordQuality>, extra::Err<Rich<'a, char>>> {
+fn quality<'a>() -> impl Parser<'a, &'a str, Option<ChordQuality>, Extra<'a>> {
     let unbracketed = || any().filter(|c: &char| is_quality_char(*c) && !matches!(c, '(' | ')'));
     let group = just('(')
         .then(unbracketed().labelled("chord alteration").repeated())

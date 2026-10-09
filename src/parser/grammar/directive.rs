@@ -1,7 +1,7 @@
 //! Instruction lines: `#name value` directives and `//` comments.
 
+use super::Extra;
 use crate::model::Block;
-use chumsky::extra;
 use chumsky::prelude::*;
 use chumsky::text::{Char, inline_whitespace};
 
@@ -15,8 +15,7 @@ const KNOWN_DIRECTIVES: &[&str] = &["page_break"];
 /// stray characters. The name and value are checked by [`resolve`]. A bad
 /// directive is reported but does not stop the parse, so the rest of the chart
 /// is still checked. It then yields `None`.
-pub(super) fn directive<'a>() -> impl Parser<'a, &'a str, Option<Block>, extra::Err<Rich<'a, char>>>
-{
+pub(super) fn directive<'a>() -> impl Parser<'a, &'a str, Option<Block>, Extra<'a>> {
     // Every line break is also whitespace, so the name never runs past its line.
     let name = any()
         .filter(|c: &char| !c.is_whitespace())
@@ -43,12 +42,12 @@ pub(super) fn directive<'a>() -> impl Parser<'a, &'a str, Option<Block>, extra::
 }
 
 /// A `//` line; its content is ignored.
-pub(super) fn comment<'a>() -> impl Parser<'a, &'a str, (), extra::Err<Rich<'a, char>>> {
+pub(super) fn comment<'a>() -> impl Parser<'a, &'a str, (), Extra<'a>> {
     just("//").ignore_then(rest_of_line()).ignored()
 }
 
 /// Everything up to, but not including, the line break.
-fn rest_of_line<'a>() -> impl Parser<'a, &'a str, &'a str, extra::Err<Rich<'a, char>>> {
+fn rest_of_line<'a>() -> impl Parser<'a, &'a str, &'a str, Extra<'a>> {
     any()
         .filter(|c: &char| !c.is_newline())
         .repeated()

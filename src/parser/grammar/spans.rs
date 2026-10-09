@@ -1,7 +1,7 @@
 //! Inline text: plain and styled spans, escapes, and column trimming.
 
+use super::Extra;
 use crate::model::{TextSpan, TextStyle, is_displayable};
-use chumsky::extra;
 use chumsky::prelude::*;
 use chumsky::text::Char;
 
@@ -10,7 +10,7 @@ use chumsky::text::Char;
 /// Whitespace at the column's edges (e.g. around `<` and `>`) is insignificant
 /// and trimmed; whitespace between spans is kept. A whitespace-only column,
 /// like the inside of `<   >`, becomes empty rather than an error.
-pub(super) fn spans<'a>() -> impl Parser<'a, &'a str, Vec<TextSpan>, extra::Err<Rich<'a, char>>> {
+pub(super) fn spans<'a>() -> impl Parser<'a, &'a str, Vec<TextSpan>, Extra<'a>> {
     span_group()
         .repeated()
         .collect::<Vec<Vec<TextSpan>>>()
@@ -22,7 +22,7 @@ pub(super) fn spans<'a>() -> impl Parser<'a, &'a str, Vec<TextSpan>, extra::Err<
 /// The two styles nest one level into each other (`*a _b_ c*`) and combine, so
 /// `*_x_*` and `_*x*_` are both bold italic. A style cannot nest into itself:
 /// the next `*` inside bold closes it.
-fn span_group<'a>() -> impl Parser<'a, &'a str, Vec<TextSpan>, extra::Err<Rich<'a, char>>> {
+fn span_group<'a>() -> impl Parser<'a, &'a str, Vec<TextSpan>, Extra<'a>> {
     let bold = styled('*', TextStyle::Bold, styled_leaf('_', TextStyle::Italic));
     let italic = styled('_', TextStyle::Italic, styled_leaf('*', TextStyle::Bold));
 
@@ -35,8 +35,8 @@ fn span_group<'a>() -> impl Parser<'a, &'a str, Vec<TextSpan>, extra::Err<Rich<'
 fn styled<'a>(
     marker: char,
     style: TextStyle,
-    nested: impl Parser<'a, &'a str, TextSpan, extra::Err<Rich<'a, char>>>,
-) -> impl Parser<'a, &'a str, Vec<TextSpan>, extra::Err<Rich<'a, char>>> {
+    nested: impl Parser<'a, &'a str, TextSpan, Extra<'a>>,
+) -> impl Parser<'a, &'a str, Vec<TextSpan>, Extra<'a>> {
     nested
         .or(plain())
         .repeated()
@@ -55,7 +55,7 @@ fn styled<'a>(
 fn styled_leaf<'a>(
     marker: char,
     style: TextStyle,
-) -> impl Parser<'a, &'a str, TextSpan, extra::Err<Rich<'a, char>>> {
+) -> impl Parser<'a, &'a str, TextSpan, Extra<'a>> {
     plain()
         .delimited_by(just(marker), just(marker))
         .map(move |span| with_style(span, style))
@@ -68,7 +68,7 @@ fn with_style(span: TextSpan, style: TextStyle) -> TextSpan {
     }
 }
 
-fn plain<'a>() -> impl Parser<'a, &'a str, TextSpan, extra::Err<Rich<'a, char>>> {
+fn plain<'a>() -> impl Parser<'a, &'a str, TextSpan, Extra<'a>> {
     text().map(|text| TextSpan::new(text, TextStyle::Normal))
 }
 
@@ -79,7 +79,7 @@ fn plain<'a>() -> impl Parser<'a, &'a str, TextSpan, extra::Err<Rich<'a, char>>>
 /// `\u{2028}`), so text never swallows a break that separates lines. A
 /// backslash escapes one of `\ * _ < > [ ]`; before any other character it is
 /// kept literally, as in Markdown.
-fn text<'a>() -> impl Parser<'a, &'a str, String, extra::Err<Rich<'a, char>>> {
+fn text<'a>() -> impl Parser<'a, &'a str, String, Extra<'a>> {
     let escape = just('\\').ignore_then(one_of(r"\*_<>[]"));
     let plain_char =
         any().filter(|c: &char| !c.is_newline() && is_displayable(*c) && !"*_<>[]".contains(*c));
@@ -96,7 +96,7 @@ fn text<'a>() -> impl Parser<'a, &'a str, String, extra::Err<Rich<'a, char>>> {
 ///
 /// Reported as an error. It is replaced so the span stays valid while the rest
 /// of the chart is still checked; the parse fails either way.
-fn undisplayable<'a>() -> impl Parser<'a, &'a str, char, extra::Err<Rich<'a, char>>> {
+fn undisplayable<'a>() -> impl Parser<'a, &'a str, char, Extra<'a>> {
     any()
         .filter(|c: &char| !c.is_newline() && !is_displayable(*c))
         .validate(|c: char, e, emitter| {
@@ -115,7 +115,7 @@ fn undisplayable<'a>() -> impl Parser<'a, &'a str, char, extra::Err<Rich<'a, cha
 ///
 /// Reported as an error but kept as literal text, so parsing continues at any
 /// nesting level (`*see [A]*`).
-fn reserved_bracket<'a>() -> impl Parser<'a, &'a str, char, extra::Err<Rich<'a, char>>> {
+fn reserved_bracket<'a>() -> impl Parser<'a, &'a str, char, Extra<'a>> {
     one_of("[]").validate(|bracket: char, e, emitter| {
         emitter.emit(Rich::custom(
             e.span(),
