@@ -15,28 +15,37 @@ use chumsky::prelude::*;
 pub(super) fn chord<'a>() -> impl Parser<'a, &'a str, Chord, Extra<'a>> {
     note()
         .then(quality().or_not().map(Option::flatten))
-        .then(bass().or_not())
+        .then(bass().or_not().map(Option::flatten))
         .map(|((root, quality), bass)| Chord::new(root, quality, bass))
 }
 
 /// `/` and a single note. Quality characters glued to the bass, as in `C/E7`,
-/// are reported: nothing may follow a chord without a separator.
-fn bass<'a>() -> impl Parser<'a, &'a str, Note, Extra<'a>> {
-    let trailing = any()
-        .filter(|c: &char| is_quality_char(*c) && *c != ')')
-        .repeated()
-        .at_least(1)
+/// are reported: nothing may follow a chord without a separator. A `/` without
+/// a note is reported too, and yields `None`.
+fn bass<'a>() -> impl Parser<'a, &'a str, Option<Note>, Extra<'a>> {
+    let trailing = quality_text().validate(|text: &str, e, emitter| {
+        emitter.emit(Rich::custom(
+            e.span(),
+            format!("the bass after `/` is a single note, but `{text}` follows it"),
+        ));
+    });
+    let missing = quality_text()
+        .or_not()
         .to_slice()
         .validate(|text: &str, e, emitter| {
+            let found = if text.is_empty() {
+                String::new()
+            } else {
+                format!(", not `{text}`")
+            };
             emitter.emit(Rich::custom(
                 e.span(),
-                format!("the bass after `/` is a single note, but `{text}` follows it"),
+                format!("a bass note (A to G) must follow `/`{found}"),
             ));
+            None
         });
 
-    just('/')
-        .ignore_then(note().labelled("bass note (A to G)"))
-        .then_ignore(trailing.or_not())
+    just('/').ignore_then(note().then_ignore(trailing.or_not()).map(Some).or(missing))
 }
 
 /// An uppercase letter and an optional `b` or `#`, e.g. `C`, `Bb`, `F#`.
@@ -62,13 +71,21 @@ pub(super) fn note<'a>() -> impl Parser<'a, &'a str, Note, Extra<'a>> {
         .map(|(letter, accidental)| Note { letter, accidental })
 }
 
-/// The characters after the root, checked as a [`ChordQuality`].
-///
-/// Read by structure: plain quality characters and whole `(…)` groups. A `)`
-/// without its `(` is not part of the quality, so `(Am7)` ends the chord at
-/// the `)`. An invalid quality is reported and yields `None`; the parse fails
-/// either way, but the rest of the input is still checked.
+/// The characters after the root, checked as a [`ChordQuality`]. An invalid
+/// quality is reported and yields `None`; the parse fails either way, but the
+/// rest of the input is still checked.
 fn quality<'a>() -> impl Parser<'a, &'a str, Option<ChordQuality>, Extra<'a>> {
+    quality_text().validate(|text: &str, e, emitter| {
+        ChordQuality::try_new(text)
+            .map_err(|error| emitter.emit(Rich::custom(e.span(), quality_problem(text, &error))))
+            .ok()
+    })
+}
+
+/// Text shaped like a quality, read by structure: plain quality characters
+/// and whole `(…)` groups. A `)` without its `(` is not part of it, so
+/// `(Am7)` ends the chord at the `)`.
+fn quality_text<'a>() -> impl Parser<'a, &'a str, &'a str, Extra<'a>> {
     let unbracketed = || any().filter(|c: &char| is_quality_char(*c) && !matches!(c, '(' | ')'));
     let group = just('(')
         .then(unbracketed().labelled("chord alteration").repeated())
@@ -80,13 +97,6 @@ fn quality<'a>() -> impl Parser<'a, &'a str, Option<ChordQuality>, Extra<'a>> {
         .repeated()
         .at_least(1)
         .to_slice()
-        .validate(|text: &str, e, emitter| {
-            ChordQuality::try_new(text)
-                .map_err(|error| {
-                    emitter.emit(Rich::custom(e.span(), quality_problem(text, &error)))
-                })
-                .ok()
-        })
 }
 
 /// Why `text` is not a valid quality. The grammar already guarantees closed,
@@ -217,7 +227,12 @@ mod tests {
 
     #[test]
     fn bass_is_a_single_note() {
-        for (input, extra) in [("C/E7", "`7`"), ("C/Eb7", "`7`"), ("C/Gm", "`m`")] {
+        for (input, extra) in [
+            ("C/E7", "`7`"),
+            ("C/Eb7", "`7`"),
+            ("C/Gm", "`m`"),
+            ("C/E(b9)", "`(b9)`"),
+        ] {
             let message = error(input);
             assert!(message.contains("single note"), "{input:?}: {message}");
             assert!(message.contains(extra), "{input:?}: {message}");

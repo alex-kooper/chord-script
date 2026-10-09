@@ -56,6 +56,13 @@ fn test_any_script_is_allowed_in_text() {
 }
 
 #[test]
+fn test_error_after_non_ascii_text_points_at_its_column() {
+    let report = error_report("= ok\n- Тональність [Cbb]");
+    assert!(report.contains(":2:18 "), "{report}");
+    assert!(report.contains("- Тональність [Cbb]"), "{report}");
+}
+
+#[test]
 fn test_control_character_in_comment_is_ignored() {
     assert!(parse_chart("// a\u{1}b").is_ok());
 }

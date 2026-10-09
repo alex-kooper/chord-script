@@ -5,8 +5,9 @@
 //! Keeping both behaviors here means adding a new line kind later touches one
 //! place: its height and its drawing sit side by side.
 
-use crate::model::{Line, LineLevel, TextSpan, TextStyle};
+use crate::model::{Inline, Line, LineLevel, TextStyle};
 use crate::render::RenderConfig;
+use crate::render::inline::drawn_text;
 use svg::node::Blob;
 use svg::node::element::{TSpan, Text as SvgText};
 
@@ -23,7 +24,7 @@ pub(super) fn height_of(line: &Line, config: &RenderConfig) -> f64 {
 pub(super) fn render(line: &Line, config: &RenderConfig, y: f64) -> Vec<SvgText> {
     let page = &config.layout;
 
-    // The three columns differ only in their spans, x-position, and anchor.
+    // The three columns differ only in their inlines, x-position, and anchor.
     // Left has no anchor: SVG's default `start` is exactly left alignment.
     let columns = [
         (&line.left, page.margin_horizontal, None),
@@ -37,9 +38,9 @@ pub(super) fn render(line: &Line, config: &RenderConfig, y: f64) -> Vec<SvgText>
 
     columns
         .into_iter()
-        .filter(|(spans, _, _)| !spans.is_empty())
-        .map(|(spans, x, anchor)| {
-            let element = render_spans(spans, x, y, line.level, config);
+        .filter(|(inlines, _, _)| !inlines.is_empty())
+        .map(|(inlines, x, anchor)| {
+            let element = render_column(inlines, x, y, line.level, config);
             match anchor {
                 Some(anchor) => element.set("text-anchor", anchor),
                 None => element,
@@ -48,22 +49,22 @@ pub(super) fn render(line: &Line, config: &RenderConfig, y: f64) -> Vec<SvgText>
         .collect()
 }
 
-/// Render a sequence of styled text spans as a single SVG text element with tspans.
+/// Render a column as a single SVG text element with one tspan per inline.
 ///
 /// The tspans are joined into one blob: the svg crate puts a newline before
 /// every child element, which SVG would render as a space inside words
 /// (`un_believ_able`).
-fn render_spans(
-    spans: &[TextSpan],
+fn render_column(
+    inlines: &[Inline],
     x: f64,
     y: f64,
     level: LineLevel,
     config: &RenderConfig,
 ) -> SvgText {
     let style = config.font_style_for_level(level);
-    let tspans: String = spans
+    let tspans: String = inlines
         .iter()
-        .map(|span| render_span(span).to_string())
+        .map(|inline| render_inline(inline).to_string())
         .collect();
 
     SvgText::new("")
@@ -75,11 +76,10 @@ fn render_spans(
         .add(Blob::new(tspans))
 }
 
-fn render_span(span: &TextSpan) -> TSpan {
-    let text: &str = span.text.as_ref();
-    let tspan = TSpan::new(text);
+fn render_inline(inline: &Inline) -> TSpan {
+    let tspan = TSpan::new(drawn_text(inline));
 
-    match span.style {
+    match inline.style {
         TextStyle::Normal => tspan,
         TextStyle::Bold => tspan.set("font-weight", "bold"),
         TextStyle::Italic => tspan.set("font-style", "italic"),

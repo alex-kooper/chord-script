@@ -8,6 +8,7 @@
 //! implementation detail: the interface speaks only of charts, configuration,
 //! and PDF bytes.
 
+use super::inline::drawn_text;
 use super::svg::{SvgGenerator, SvgPage};
 use super::{LayoutConfig, RenderConfig, RenderError, Result, fonts};
 use crate::model::{Block, Chart};
@@ -102,10 +103,11 @@ fn check_characters(chart: &Chart) -> Result<()> {
         Block::PageBreak => None,
     });
     for line in lines {
-        let unsupported = line
-            .spans()
-            .flat_map(|span| -> std::str::Chars<'_> { span.text.as_ref().chars() })
-            .find(|&c| c != '\t' && !fonts::can_draw(c));
+        let unsupported = line.inlines().find_map(|inline| {
+            drawn_text(inline)
+                .chars()
+                .find(|&c| c != '\t' && !fonts::can_draw(c))
+        });
         if let Some(character) = unsupported {
             return Err(RenderError::unsupported_character(line, character));
         }

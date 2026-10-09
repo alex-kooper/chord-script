@@ -141,7 +141,7 @@ Text may use any script, but unprintable characters (control characters
 other than tab) are an error. PDF output draws text only in its bundled font,
 which covers Latin, Cyrillic, and Greek; any other character, such as an emoji,
 a CJK character, or a typed `♭`, is an error rather than silently missing from
-the PDF. Sharps and flats will come from the planned note syntax (`[Bb]`).
+the PDF. Write sharps and flats as [inline chords](#inline-chords) instead, e.g. `[Bb]`.
 
 A style cannot nest into itself: inside `*…*`, the next `*` closes the bold.
 Unclosed or crossed markers (`*bold`, `*_x*_`) are parse errors, and so is
@@ -162,11 +162,43 @@ Markdown's `**bold**` (an empty bold followed by text).
 | `\` | `\\` |
 
 A backslash before any other character is kept as-is (`C:\path`), as in Markdown.
-An unescaped `<` or `>` that doesn't form the center is a parse error.
+An unescaped `<` or `>` that doesn't form the center is a parse error, and so is
+a `]` that closes no `[`.
 
-`[` and `]` are reserved for transposable notes (e.g. `Key of [A] minor`), a
-planned feature. Until then, an unescaped `[` or `]` is a parse error, so
-existing charts won't change meaning when notes arrive.
+### Inline Chords
+
+A chord in square brackets can stand anywhere in a text line:
+
+```
+= Key of [Bb] minor <> Capo 3
+- Vamp on [Am7] [D7/F#] until the cue
+```
+
+A note is a chord with no quality, so `[Bb]` serves for a key as well. Inline
+chords are written as chords rather than text so that they can be transposed
+and drawn with proper symbols.
+
+> **Status:** chords are drawn as typed (`Bbm7b5/E`) for now; the symbols
+> (♭, ♯, △, °, ø) and the iReal Pro-style layout come with chord rendering.
+
+The brackets hold exactly one chord symbol and nothing else, not even spaces:
+
+| Part | Syntax | Examples |
+|------|--------|----------|
+| Root | `A` to `G`, then an optional `b` or `#` | `C`, `Bb`, `F#`, `Cb` |
+| Quality (optional) | ASCII letters and digits, `#`, `^`, `-`, `+`, and `( )` groups | `m7`, `^7`, `-7`, `o7`, `h7`, `sus4`, `7(b9#13)` |
+| Bass (optional) | `/` and a single note | `C/E`, `D/F#` |
+
+- The quality is kept exactly as written: `[Cmaj7]` and `[C^7]` are both valid
+  and stay different text.
+- The quality never starts with `b` or `#`: right after the root, those belong
+  to the root. `[Cb5]` is C-flat with quality `5`; a flat fifth is `[C(b5)]`,
+  or `[C7b5]` for the seventh chord. Double accidentals (`[Cbb]`) are errors.
+- Parentheses come in pairs, each with something inside and none nested:
+  `[C7(b9)(#11)]`, not `[C7(b9]` or `[C()]`.
+- Inline chords take the style around them: `*[Am]*` is a bold chord.
+- `[ Am ]`, `[]`, `[Am G]`, `[am]`, `[C/]`, `[C/E7]`, and an unclosed `[Am`
+  are errors. Write `\[` and `\]` for literal brackets.
 
 ---
 
@@ -424,15 +456,20 @@ text_line    = weight ( (SP | TAB)+ columns | &(NEWLINE | EOF) )
 weight       = "===" | "==" | "=" | "-"
 
 columns      = text_content ( "<" text_content ">" text_content )?
-text_content = (bold | italic | text)*       # edges trimmed
+text_content = (bold | italic | inline)*     # edges trimmed
 
-bold         = "*" (text | "_" text "_")+ "*"
-italic       = "_" (text | "*" text "*")+ "_"
+bold         = "*" (inline | "_" inline+ "_")+ "*"
+italic       = "_" (inline | "*" inline+ "*")+ "_"
+inline       = "[" chord "]" | text
 
-text         = (escape | reserved | plain_char)+
+chord        = note quality? ("/" note)?
+note         = ( "A" | "B" | "C" | "D" | "E" | "F" | "G" ) ( "b" | "#" )?
+quality      = ( quality_char | "(" quality_char+ ")" )+   # not starting with "b" or "#"
+quality_char = [A-Za-z0-9] | "#" | "^" | "-" | "+"
+
+text         = (escape | plain_char)+
 escape       = "\" ( "\" | "*" | "_" | "<" | ">" | "[" | "]" )
 plain_char   = any character except "*", "_", "<", ">", "[", "]", NEWLINE
-reserved     = "[" | "]"                   # error: reserved for notes; kept as text
 
 NEWLINE      = "\r\n" | "\n" | "\r" | VT | FF | NEL | LS | PS
 

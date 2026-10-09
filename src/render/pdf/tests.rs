@@ -1,10 +1,10 @@
 use super::*;
-use crate::model::{Block, Line, LineLevel, TextSpan, TextStyle};
+use crate::model::{Block, Chord, Inline, Letter, Line, LineLevel, Note, TextStyle};
 
 fn text(content: &str) -> Block {
     Line::new(
         LineLevel::Text,
-        vec![TextSpan::plain(content)],
+        vec![Inline::plain(content)],
         vec![],
         vec![],
     )
@@ -74,9 +74,9 @@ fn text_is_embedded_in_the_bundled_font_faces() {
     let line = Line::new(
         LineLevel::Text,
         vec![
-            TextSpan::plain("Привіт, "),
-            TextSpan::new("жирний", TextStyle::Bold),
-            TextSpan::new(" курсив", TextStyle::Italic),
+            Inline::plain("Привіт, "),
+            Inline::text("жирний", TextStyle::Bold),
+            Inline::text(" курсив", TextStyle::Italic),
         ],
         vec![],
         vec![],
@@ -155,9 +155,9 @@ fn font_family_list_falls_back_to_generic_sans_serif() {
 fn character_missing_from_the_bundled_font_is_an_error() {
     let key = Line::new(
         LineLevel::Text,
-        vec![TextSpan::plain("Key: ")],
+        vec![Inline::plain("Key: ")],
         vec![],
-        vec![TextSpan::new("B♭", TextStyle::Bold)],
+        vec![Inline::text("B♭", TextStyle::Bold)],
     );
     let error = PdfGenerator::with_defaults()
         .render(&Chart::new(vec![text("fine"), key.into()]))
@@ -165,6 +165,27 @@ fn character_missing_from_the_bundled_font_is_an_error() {
     assert_eq!(
         error.to_string(),
         "line \"Key: B♭\" contains `♭` (U+266D), which the bundled font cannot draw"
+    );
+}
+
+#[test]
+fn chords_are_checked_and_described_by_their_symbol() {
+    let chord = Inline::new(
+        Chord::new(Note::flat(Letter::B), None, None),
+        TextStyle::Normal,
+    );
+    let key = Line::new(
+        LineLevel::Text,
+        vec![Inline::plain("Key: "), chord, Inline::plain(" ♭")],
+        vec![],
+        vec![],
+    );
+    let error = PdfGenerator::with_defaults()
+        .render(&Chart::new(vec![key.into()]))
+        .expect_err("a typed flat cannot be drawn");
+    assert_eq!(
+        error.to_string(),
+        "line \"Key: Bb ♭\" contains `♭` (U+266D), which the bundled font cannot draw"
     );
 }
 
@@ -211,7 +232,7 @@ fn layout_errors_are_reported_as_for_svg() {
     // 20pt between the 28pt margins; a 14pt text line fits, a 24pt title does not.
     let title = Line::new(
         LineLevel::Header1,
-        vec![TextSpan::plain("Title")],
+        vec![Inline::plain("Title")],
         vec![],
         vec![],
     );

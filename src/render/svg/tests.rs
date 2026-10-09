@@ -1,5 +1,7 @@
 use super::*;
-use crate::model::{Block, Chart, Line, LineLevel, TextSpan, TextStyle};
+use crate::model::{
+    Block, Chart, Chord, ChordQuality, Inline, Letter, Line, LineLevel, Note, TextStyle,
+};
 use crate::render::{FontStyle, LayoutConfig};
 
 mod pagination;
@@ -9,9 +11,9 @@ fn chart_of(lines: Vec<Line>) -> Chart {
     Chart::new(lines.into_iter().map(Block::from).collect())
 }
 
-/// A line with spans in the left column only.
-fn left_line(level: LineLevel, spans: Vec<TextSpan>) -> Line {
-    Line::new(level, spans, vec![], vec![])
+/// A line with inlines in the left column only.
+fn left_line(level: LineLevel, left: Vec<Inline>) -> Line {
+    Line::new(level, left, vec![], vec![])
 }
 
 /// Render a chart that must fit on exactly one page.
@@ -42,7 +44,7 @@ fn test_render_empty_chart_is_one_blank_page() {
 fn test_render_single_line() {
     let chart = chart_of(vec![left_line(
         LineLevel::Text,
-        vec![TextSpan::plain("Left text")],
+        vec![Inline::plain("Left text")],
     )]);
     let svg = render_default(&chart);
 
@@ -72,8 +74,8 @@ fn test_render_styled_spans() {
     let chart = chart_of(vec![left_line(
         LineLevel::Text,
         vec![
-            TextSpan::plain("Normal "),
-            TextSpan::new("bold", TextStyle::Bold),
+            Inline::plain("Normal "),
+            Inline::text("bold", TextStyle::Bold),
         ],
     )]);
     let svg = render_default(&chart);
@@ -87,7 +89,7 @@ fn test_render_styled_spans() {
 fn test_header_styling() {
     let chart = chart_of(vec![left_line(
         LineLevel::Header1,
-        vec![TextSpan::plain("Title")],
+        vec![Inline::plain("Title")],
     )]);
     let svg = render_default(&chart);
 
@@ -129,7 +131,7 @@ fn test_custom_config() {
     };
     let chart = chart_of(vec![left_line(
         LineLevel::Text,
-        vec![TextSpan::plain("Test")],
+        vec![Inline::plain("Test")],
     )]);
 
     let svg = render_one(&SvgGenerator::new(config), &chart);
@@ -139,8 +141,8 @@ fn test_custom_config() {
 #[test]
 fn stacked_lines_get_distinct_increasing_y() {
     let chart = chart_of(vec![
-        left_line(LineLevel::Text, vec![TextSpan::plain("first")]),
-        left_line(LineLevel::Text, vec![TextSpan::plain("second")]),
+        left_line(LineLevel::Text, vec![Inline::plain("first")]),
+        left_line(LineLevel::Text, vec![Inline::plain("second")]),
     ]);
     let svg = render_default(&chart);
 
@@ -153,7 +155,7 @@ fn stacked_lines_get_distinct_increasing_y() {
 fn empty_line_takes_its_level_height() {
     let chart = chart_of(vec![
         left_line(LineLevel::Header2, vec![]),
-        left_line(LineLevel::Text, vec![TextSpan::plain("after spacer")]),
+        left_line(LineLevel::Text, vec![Inline::plain("after spacer")]),
     ]);
     let svg = render_default(&chart);
 
@@ -167,9 +169,9 @@ fn spans_are_joined_without_separating_whitespace() {
     let chart = chart_of(vec![left_line(
         LineLevel::Text,
         vec![
-            TextSpan::plain("un"),
-            TextSpan::new("believ", TextStyle::Italic),
-            TextSpan::plain("able"),
+            Inline::plain("un"),
+            Inline::text("believ", TextStyle::Italic),
+            Inline::plain("able"),
         ],
     )]);
     let svg = render_default(&chart);
@@ -183,11 +185,35 @@ fn spans_are_joined_without_separating_whitespace() {
 }
 
 #[test]
+fn chord_is_drawn_as_its_symbol_in_its_style() {
+    let chord = Chord::new(
+        Note::flat(Letter::B),
+        Some(ChordQuality::try_new("m7").expect("valid quality")),
+        Some(Note::natural(Letter::F)),
+    );
+    let line = Line::new(
+        LineLevel::Text,
+        vec![
+            Inline::plain("Key of "),
+            Inline::new(chord, TextStyle::Bold),
+        ],
+        vec![],
+        vec![],
+    );
+    let svg = render_default(&chart_of(vec![line]));
+
+    assert!(
+        svg.contains(r#"<tspan>Key of </tspan><tspan font-weight="bold">Bbm7/F</tspan>"#),
+        "{svg}"
+    );
+}
+
+#[test]
 fn renders_italic_and_bold_italic_styles() {
     let chart = chart_of(vec![Line::new(
         LineLevel::Text,
-        vec![TextSpan::new("italic", TextStyle::Italic)],
-        vec![TextSpan::new("both", TextStyle::BoldItalic)],
+        vec![Inline::text("italic", TextStyle::Italic)],
+        vec![Inline::text("both", TextStyle::BoldItalic)],
         vec![],
     )]);
     let svg = render_default(&chart);

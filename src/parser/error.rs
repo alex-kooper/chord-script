@@ -3,7 +3,7 @@
 //! Nothing here refers to the parsing library: diagnostics are owned data, so a
 //! `ParseError` outlives the borrowed input it was produced from.
 
-use ariadne::{Color, Config, Label, Report, ReportKind, Source};
+use ariadne::{Color, Config, IndexType, Label, Report, ReportKind, Source};
 use std::ops::Range;
 use thiserror::Error;
 
@@ -20,7 +20,8 @@ pub enum ReportStyle {
     Colored,
 }
 
-/// A single diagnostic produced while parsing.
+/// A single diagnostic produced while parsing. Spans are byte offsets into
+/// the source.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct Diagnostic {
     message: String,
@@ -75,7 +76,9 @@ impl ParseError {
     ///
     /// `name` labels the source in the report (e.g. the input file name).
     pub fn report(&self, name: &str, style: ReportStyle) -> String {
-        let config = Config::default().with_color(style == ReportStyle::Colored);
+        let config = Config::default()
+            .with_index_type(IndexType::Byte)
+            .with_color(style == ReportStyle::Colored);
         let mut buf = Vec::new();
         for diagnostic in &self.diagnostics {
             let mut builder = Report::build(ReportKind::Error, (name, diagnostic.span.clone()))

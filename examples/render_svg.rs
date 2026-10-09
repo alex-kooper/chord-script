@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use chord_script::model::{Block, Chart, Line, LineLevel, TextSpan, TextStyle};
+use chord_script::model::{Block, Chart, Inline, Line, LineLevel, TextStyle};
 use chord_script::render::SvgGenerator;
 
 fn main() -> Result<()> {
@@ -8,28 +8,28 @@ fn main() -> Result<()> {
         Line {
             level: LineLevel::Header1,
             left: vec![],
-            center: vec![TextSpan::plain("My Song Title")],
+            center: vec![Inline::plain("My Song Title")],
             right: vec![],
         },
         Line {
             level: LineLevel::Header2,
-            left: vec![TextSpan::plain("Header 2")],
+            left: vec![Inline::plain("Header 2")],
             center: vec![],
             right: vec![],
         },
         Line {
             level: LineLevel::Header3,
-            left: vec![TextSpan::new("Verse 1", TextStyle::Italic)],
+            left: vec![Inline::text("Verse 1", TextStyle::Italic)],
             center: vec![],
             right: vec![],
         },
         Line {
             level: LineLevel::Text,
             left: vec![
-                TextSpan::plain("This is "),
-                TextSpan::new("some", TextStyle::Bold),
-                TextSpan::plain(" text with "),
-                TextSpan::new("styling", TextStyle::Italic),
+                Inline::plain("This is "),
+                Inline::text("some", TextStyle::Bold),
+                Inline::plain(" text with "),
+                Inline::text("styling", TextStyle::Italic),
             ],
             center: vec![],
             right: vec![],
@@ -37,14 +37,14 @@ fn main() -> Result<()> {
         Line {
             level: LineLevel::Text,
             left: vec![],
-            center: vec![TextSpan::plain("Centered text")],
+            center: vec![Inline::plain("Centered text")],
             right: vec![],
         },
         Line {
             level: LineLevel::Text,
             left: vec![],
             center: vec![],
-            right: vec![TextSpan::plain("Right aligned")],
+            right: vec![Inline::plain("Right aligned")],
         },
     ];
     let chart = Chart::new(lines.into_iter().map(Block::from).collect());

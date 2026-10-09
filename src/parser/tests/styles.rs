@@ -1,9 +1,9 @@
 use super::{parse_chart, parse_line, texts};
-use crate::model::{TextSpan, TextStyle};
+use crate::model::{Inline, TextStyle};
 use TextStyle::{Bold, BoldItalic, Italic, Normal};
 
-fn styles(spans: &[TextSpan]) -> Vec<TextStyle> {
-    spans.iter().map(|span| span.style).collect()
+pub(super) fn styles(column: &[Inline]) -> Vec<TextStyle> {
+    column.iter().map(|inline| inline.style).collect()
 }
 
 /// Assert the text and style of every span in the left column.

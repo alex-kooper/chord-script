@@ -1,6 +1,7 @@
 use super::super::layout::{Page, paginate};
 use super::{chart_of, left_line};
-use crate::model::{Block, Chart, Line, LineLevel, TextSpan};
+use crate::model::{Block, Chart, Inline, Line, LineLevel};
+use crate::render::inline::drawn_text;
 use crate::render::{LayoutConfig, RenderConfig, RenderError, SvgGenerator};
 
 /// A 100pt-tall page with 10pt margins: baselines may go down to y = 90, and
@@ -23,7 +24,7 @@ fn height_of(line: &Line) -> f64 {
 }
 
 fn text(content: &str) -> Block {
-    left_line(LineLevel::Text, vec![TextSpan::plain(content)]).into()
+    left_line(LineLevel::Text, vec![Inline::plain(content)]).into()
 }
 
 /// An empty line, like a bare `-` marker.
@@ -32,7 +33,7 @@ fn spacer() -> Block {
 }
 
 fn tall(content: &str) -> Block {
-    left_line(LineLevel::Header1, vec![TextSpan::plain(content)]).into()
+    left_line(LineLevel::Header1, vec![Inline::plain(content)]).into()
 }
 
 /// Each page as its lines' `(text, y)` pairs; a spacer's text is `""`.
@@ -48,12 +49,7 @@ fn page_contents(page: &Page) -> Vec<(String, f64)> {
     page.lines
         .iter()
         .map(|placed| {
-            let text: String = placed
-                .line
-                .left
-                .iter()
-                .map(|span| -> &str { span.text.as_ref() })
-                .collect();
+            let text: String = placed.line.left.iter().map(drawn_text).collect();
             (text, placed.y)
         })
         .collect()
@@ -137,7 +133,7 @@ fn render_fails_when_a_line_cannot_fit_on_any_page() {
     };
     let chart = chart_of(vec![left_line(
         LineLevel::Header1,
-        vec![TextSpan::plain("Title")],
+        vec![Inline::plain("Title")],
     )]);
     assert!(SvgGenerator::new(config).render(&chart).is_err());
 }
@@ -226,7 +222,7 @@ fn each_rendered_page_is_a_standalone_svg() {
 fn overflow_renders_onto_following_pages() {
     // Defaults: 842pt page, 28pt margins, 14pt text lines -> 56 lines per page.
     let lines = (0..60)
-        .map(|n| left_line(LineLevel::Text, vec![TextSpan::plain(format!("line {n}"))]))
+        .map(|n| left_line(LineLevel::Text, vec![Inline::plain(format!("line {n}"))]))
         .collect();
     let pages = SvgGenerator::with_defaults()
         .render(&chart_of(lines))

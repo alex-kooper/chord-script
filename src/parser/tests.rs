@@ -1,7 +1,8 @@
 use super::{ParseError, ReportStyle, parse_chart};
-use crate::model::{Block, Line, LineLevel, TextSpan};
+use crate::model::{Block, Content, Inline, Line, LineLevel};
 
 mod characters;
+mod chords;
 mod directives;
 mod styles;
 
@@ -29,8 +30,15 @@ fn parse_line(input: &str) -> Line {
     lines.into_iter().next().expect("length checked above")
 }
 
-fn texts(spans: &[TextSpan]) -> Vec<&str> {
-    spans.iter().map(|span| span.text.as_ref()).collect()
+/// The column's text, with each chord shown as `[symbol]`.
+fn texts(column: &[Inline]) -> Vec<String> {
+    column
+        .iter()
+        .map(|inline| match &inline.content {
+            Content::Text(text) => text.as_ref().to_string(),
+            Content::Chord(chord) => format!("[{chord}]"),
+        })
+        .collect()
 }
 
 /// Assert the text of each column of a single-line input.
@@ -140,32 +148,6 @@ fn test_unescaped_backslash_is_literal() {
 }
 
 #[test]
-fn test_square_brackets_are_reserved() {
-    let error = parse_chart("= Key of [A]").expect_err("`[` should be rejected");
-    assert!(report(&error).contains("reserved for notes"));
-    assert!(parse_chart("= a ] b").is_err());
-}
-
-#[test]
-fn test_square_brackets_are_reserved_inside_styles() {
-    for input in ["= *see [A]*", "= _see [A]_", "= *bold _see [A]_*"] {
-        let error = parse_chart(input).expect_err("brackets inside styles should be rejected");
-        assert!(
-            report(&error).contains("reserved for notes"),
-            "reserved-bracket message for {input:?}"
-        );
-    }
-}
-
-#[test]
-fn test_parsing_continues_after_reserved_bracket() {
-    let error = parse_chart("= *see [A]*\n= *unclosed").expect_err("both lines are invalid");
-    let report = report(&error);
-    assert!(report.contains("reserved for notes"), "{report}");
-    assert!(report.contains("found end of input"), "{report}");
-}
-
-#[test]
 fn test_bare_markers_are_empty_lines() {
     // Each bare marker is its own empty line; it never takes text from the next line.
     let lines = parse_lines("===\n==\n=\n-");
@@ -204,7 +186,7 @@ fn test_every_line_break_separates_lines() {
     ] {
         let input = format!("= a{break_char}= b");
         let lines = parse_lines(&input);
-        let lefts: Vec<Vec<&str>> = lines.iter().map(|line| texts(&line.left)).collect();
+        let lefts: Vec<Vec<String>> = lines.iter().map(|line| texts(&line.left)).collect();
         assert_eq!(lefts, [["a"], ["b"]], "lines of {input:?}");
     }
 }

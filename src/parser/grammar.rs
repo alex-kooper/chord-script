@@ -4,20 +4,17 @@
 //! hands back owned model values or owned diagnostics, keeping the parsing
 //! library an implementation detail of `parser`.
 
-#[cfg_attr(
-    not(test),
-    expect(dead_code, reason = "used once text lines accept `[chord]`")
-)]
+mod bracketed_chord;
 mod chord;
 mod directive;
-mod spans;
+mod inline;
 
 use super::error::Diagnostic;
-use crate::model::{Block, Line, LineLevel, TextSpan};
+use crate::model::{Block, Inline, Line, LineLevel};
 use chumsky::extra;
 use chumsky::prelude::*;
 use chumsky::text::{inline_whitespace, newline};
-use spans::spans;
+use inline::column;
 
 /// What every parser in the grammar carries besides its output: rich errors.
 type Extra<'a> = extra::Err<Rich<'a, char>>;
@@ -112,7 +109,7 @@ fn line_parser<'a>() -> impl Parser<'a, &'a str, Line, Extra<'a>> {
         })
 }
 
-type Columns = (Vec<TextSpan>, Vec<TextSpan>, Vec<TextSpan>);
+type Columns = (Vec<Inline>, Vec<Inline>, Vec<Inline>);
 
 /// Split a line into `LEFT <CENTER> RIGHT`.
 ///
@@ -120,12 +117,12 @@ type Columns = (Vec<TextSpan>, Vec<TextSpan>, Vec<TextSpan>);
 /// left-aligned, text after it is right-aligned, and `<>` is an empty center
 /// that still separates left from right.
 fn columns_parser<'a>() -> impl Parser<'a, &'a str, Columns, Extra<'a>> {
-    let center = spans()
+    let center = column()
         .delimited_by(just('<'), just('>'))
         .labelled("centered text in < >");
 
-    spans()
-        .then(center.then(spans()).or_not())
+    column()
+        .then(center.then(column()).or_not())
         .map(|(left, rest)| match rest {
             Some((center, right)) => (left, center, right),
             None => (left, Vec::new(), Vec::new()),

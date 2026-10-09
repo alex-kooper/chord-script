@@ -7,6 +7,7 @@
 mod config;
 mod error;
 mod fonts;
+mod inline;
 mod pdf;
 mod svg;
 
