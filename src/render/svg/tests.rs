@@ -1,9 +1,8 @@
 use super::*;
-use crate::model::{
-    Block, Chart, Chord, ChordQuality, Inline, Letter, Line, LineLevel, Note, TextStyle,
-};
+use crate::model::{Block, Chart, Inline, Line, LineLevel, TextStyle};
 use crate::render::{FontStyle, LayoutConfig};
 
+mod chords;
 mod pagination;
 
 /// A chart made only of text lines.
@@ -181,30 +180,6 @@ fn spans_are_joined_without_separating_whitespace() {
             r#"<tspan>un</tspan><tspan font-style="italic">believ</tspan><tspan>able</tspan>"#
         ),
         "tspans must be adjacent: {svg}"
-    );
-}
-
-#[test]
-fn chord_is_drawn_as_its_symbol_in_its_style() {
-    let chord = Chord::new(
-        Note::flat(Letter::B),
-        Some(ChordQuality::try_new("m7").expect("valid quality")),
-        Some(Note::natural(Letter::F)),
-    );
-    let line = Line::new(
-        LineLevel::Text,
-        vec![
-            Inline::plain("Key of "),
-            Inline::new(chord, TextStyle::Bold),
-        ],
-        vec![],
-        vec![],
-    );
-    let svg = render_default(&chart_of(vec![line]));
-
-    assert!(
-        svg.contains(r#"<tspan>Key of </tspan><tspan font-weight="bold">Bbm7/F</tspan>"#),
-        "{svg}"
     );
 }
 

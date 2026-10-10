@@ -12,5 +12,9 @@ chords song.chords -o song.svg     # song.svg, or song-1.svg, song-2.svg, ... fo
 chords *.chords                    # one PDF per chart
 ```
 
+PDF is the exact output: it embeds its fonts and looks the same everywhere. SVG is a preview: it
+only names its fonts, so viewers draw it with whatever fonts they have, and chord symbols may be
+misplaced or misaligned.
+
 Parse errors are reported against the source on stderr. Compilation continues past a failing
 chart, and the exit code is 1 if any chart failed.

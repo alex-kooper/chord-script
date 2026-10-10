@@ -1,6 +1,6 @@
 //! Errors that stop a chart from being rendered, in any output format.
 
-use super::inline::drawn_text;
+use super::inline::typed_text;
 use crate::model::Line;
 use thiserror::Error;
 
@@ -71,7 +71,7 @@ const PREVIEW_CHARS: usize = 40;
 
 /// Describe a line by its text, since the model carries no source positions.
 fn describe(line: &Line) -> String {
-    let text: String = line.inlines().map(drawn_text).collect();
+    let text: String = line.inlines().map(typed_text).collect();
 
     if text.is_empty() {
         return format!("an empty {:?} line", line.level);

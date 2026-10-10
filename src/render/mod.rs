@@ -4,6 +4,7 @@
 //! (or `with_defaults()`) and `render(&Chart) -> Result<_>`. They share the
 //! configuration, the errors, and the bundled fonts.
 
+mod chord;
 mod config;
 mod error;
 mod fonts;

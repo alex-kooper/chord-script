@@ -2,20 +2,40 @@
 //!
 //! Noto Sans covers Latin, Cyrillic (including Ukrainian), and Greek. It ships
 //! as four static faces, so weights snap to regular (400) or bold (700).
+//! Noto Music draws the ♭ and ♯ of chord symbols, which Noto Sans lacks; it
+//! has a regular face only.
 
+use crate::model::TextStyle;
 use std::sync::{Arc, OnceLock};
-use ttf_parser::Face;
+use ttf_parser::{Face, GlyphId};
 use usvg::fontdb::{Database, Family, Query, Source};
 
-/// The family name of the bundled font.
+/// The family name of the bundled text font.
 pub(super) const FAMILY: &str = "Noto Sans";
 
-const FACES: [&[u8]; 4] = [
+/// The family name of the bundled font for ♭ and ♯ in chord symbols.
+pub(super) const MUSIC_FAMILY: &str = "Noto Music";
+
+/// The bundled faces: the text faces in [`text_face_index`] order, then the
+/// music face.
+const FACES: [&[u8]; 5] = [
     include_bytes!("../../assets/fonts/NotoSans-Regular.ttf"),
     include_bytes!("../../assets/fonts/NotoSans-Bold.ttf"),
     include_bytes!("../../assets/fonts/NotoSans-Italic.ttf"),
     include_bytes!("../../assets/fonts/NotoSans-BoldItalic.ttf"),
+    include_bytes!("../../assets/fonts/NotoMusic-Regular.ttf"),
 ];
+
+const MUSIC_FACE_INDEX: usize = 4;
+
+/// A bundled face to measure text in.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum Font {
+    /// Noto Sans in the given style
+    Text(TextStyle),
+    /// Noto Music
+    Music,
+}
 
 /// A font database holding only the bundled faces, never system fonts.
 ///
@@ -60,9 +80,53 @@ fn parse_family(name: &str) -> Family<'_> {
     }
 }
 
-/// Whether some bundled face has a glyph for `c`.
+/// Whether some bundled text face has a glyph for `c`. The music face does not
+/// count: it draws chord symbols, not text.
 pub(super) fn can_draw(c: char) -> bool {
-    faces().iter().any(|face| face.glyph_index(c).is_some())
+    text_faces()
+        .iter()
+        .any(|face| face.glyph_index(c).is_some())
+}
+
+/// The width of `text` in `font` at `size`, from glyph advances alone.
+///
+/// Kerning is ignored, which is close enough for the short pieces of a chord
+/// symbol.
+pub(super) fn advance(text: &str, font: Font, size: f64) -> f64 {
+    let face = &faces()[face_index(font)];
+    let units: u32 = text
+        .chars()
+        .map(|c| {
+            let glyph = face.glyph_index(c).unwrap_or(GlyphId(0));
+            u32::from(face.glyph_hor_advance(glyph).unwrap_or(0))
+        })
+        .sum();
+    f64::from(units) * size / f64::from(face.units_per_em())
+}
+
+#[cfg(test)]
+pub(super) fn has_glyph(font: Font, c: char) -> bool {
+    faces()[face_index(font)].glyph_index(c).is_some()
+}
+
+fn face_index(font: Font) -> usize {
+    match font {
+        Font::Text(style) => text_face_index(style),
+        Font::Music => MUSIC_FACE_INDEX,
+    }
+}
+
+fn text_face_index(style: TextStyle) -> usize {
+    match style {
+        TextStyle::Normal => 0,
+        TextStyle::Bold => 1,
+        TextStyle::Italic => 2,
+        TextStyle::BoldItalic => 3,
+    }
+}
+
+fn text_faces() -> &'static [Face<'static>] {
+    &faces()[..MUSIC_FACE_INDEX]
 }
 
 fn faces() -> &'static [Face<'static>] {
@@ -125,7 +189,7 @@ mod tests {
     #[test]
     fn every_face_covers_latin_ukrainian_and_russian() {
         let required = "AZaz éüñçß ҐґЄєІіЇїʼ ЁёЪъЫыЭэ №«»–—’ °øΔ";
-        for face in faces() {
+        for face in text_faces() {
             let missing: String = required
                 .chars()
                 .filter(|c| !c.is_whitespace() && face.glyph_index(*c).is_none())
@@ -139,6 +203,28 @@ mod tests {
         for c in ['♭', '♯', '♮', '△', '😀', '你'] {
             assert!(!can_draw(c), "{c} is not expected in the bundled fonts");
         }
+    }
+
+    #[test]
+    fn music_face_draws_accidentals_and_is_found_by_its_family() {
+        let music = &faces()[MUSIC_FACE_INDEX];
+        for c in ['♭', '♯'] {
+            assert!(music.glyph_index(c).is_some(), "{c}");
+        }
+        let id = find(Family::Name(MUSIC_FAMILY), Weight::NORMAL, Style::Normal);
+        assert_eq!(post_script_name(id.expect("resolves")), "NotoMusic-Regular");
+    }
+
+    #[test]
+    fn advance_scales_with_size_and_depends_on_the_face() {
+        let regular = advance("C7", Font::Text(TextStyle::Normal), 10.0);
+        assert!(regular > 0.0);
+        assert_eq!(
+            advance("C7", Font::Text(TextStyle::Normal), 20.0),
+            2.0 * regular
+        );
+        assert_ne!(advance("C7", Font::Text(TextStyle::Bold), 10.0), regular);
+        assert!(advance("♭", Font::Music, 10.0) > 0.0);
     }
 
     #[test]

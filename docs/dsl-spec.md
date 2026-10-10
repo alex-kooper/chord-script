@@ -178,8 +178,11 @@ A note is a chord with no quality, so `[Bb]` serves for a key as well. Inline
 chords are written as chords rather than text so that they can be transposed
 and drawn with proper symbols.
 
-> **Status:** chords are drawn as typed (`Bbm7b5/E`) for now; the symbols
-> (♭, ♯, △, °, ø) and the iReal Pro-style layout come with chord rendering.
+Chords are drawn in the style of iReal Pro: the root at full size with its
+accidental small and raised, the quality smaller and lowered, and the bass a
+little smaller than the root, on its baseline. In the quality, `b` and `#` are drawn as ♭ and ♯, `^` as Δ, and a
+leading `o` or `h` with no letter after it as ° or ø: `[Bbh7/Ab]` reads
+B♭ø7/A♭, while `[Comit3]` keeps its `o`.
 
 The brackets hold exactly one chord symbol and nothing else, not even spaces:
 

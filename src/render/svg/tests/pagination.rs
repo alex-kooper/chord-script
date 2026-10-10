@@ -1,7 +1,7 @@
 use super::super::layout::{Page, paginate};
 use super::{chart_of, left_line};
 use crate::model::{Block, Chart, Inline, Line, LineLevel};
-use crate::render::inline::drawn_text;
+use crate::render::inline::typed_text;
 use crate::render::{LayoutConfig, RenderConfig, RenderError, SvgGenerator};
 
 /// A 100pt-tall page with 10pt margins: baselines may go down to y = 90, and
@@ -49,7 +49,7 @@ fn page_contents(page: &Page) -> Vec<(String, f64)> {
     page.lines
         .iter()
         .map(|placed| {
-            let text: String = placed.line.left.iter().map(drawn_text).collect();
+            let text: String = placed.line.left.iter().map(typed_text).collect();
             (text, placed.y)
         })
         .collect()

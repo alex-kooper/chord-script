@@ -8,10 +8,9 @@
 //! implementation detail: the interface speaks only of charts, configuration,
 //! and PDF bytes.
 
-use super::inline::drawn_text;
 use super::svg::{SvgGenerator, SvgPage};
 use super::{LayoutConfig, RenderConfig, RenderError, Result, fonts};
-use crate::model::{Block, Chart};
+use crate::model::{Block, Chart, Content};
 use derive_more::{AsRef, Into};
 use krilla::Document;
 use krilla::geom::Size;
@@ -94,19 +93,23 @@ fn check_font_family(family: &str) -> Result<()> {
     })
 }
 
-/// Fail on the first character, in reading order, that no bundled font has.
+/// Fail on the first character of text, in reading order, that no bundled
+/// text face has.
 ///
-/// Tabs are exempt: they are drawn as spaces.
+/// Tabs are exempt: they are drawn as spaces. Chords are exempt too: every
+/// sign of a chord symbol is in the bundled fonts.
 fn check_characters(chart: &Chart) -> Result<()> {
     let lines = chart.blocks.iter().filter_map(|block| match block {
         Block::Text(line) => Some(line),
         Block::PageBreak => None,
     });
     for line in lines {
-        let unsupported = line.inlines().find_map(|inline| {
-            drawn_text(inline)
+        let unsupported = line.inlines().find_map(|inline| match &inline.content {
+            Content::Text(text) => text
+                .as_ref()
                 .chars()
-                .find(|&c| c != '\t' && !fonts::can_draw(c))
+                .find(|&c| c != '\t' && !fonts::can_draw(c)),
+            Content::Chord(_) => None,
         });
         if let Some(character) = unsupported {
             return Err(RenderError::unsupported_character(line, character));

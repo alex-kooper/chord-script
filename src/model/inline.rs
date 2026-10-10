@@ -93,15 +93,15 @@ impl TextStyle {
         )
     }
 
-    fn is_bold(self) -> bool {
+    pub fn is_bold(self) -> bool {
         matches!(self, Self::Bold | Self::BoldItalic)
     }
 
-    fn is_italic(self) -> bool {
+    pub fn is_italic(self) -> bool {
         matches!(self, Self::Italic | Self::BoldItalic)
     }
 
-    fn from_flags(bold: bool, italic: bool) -> TextStyle {
+    pub fn from_flags(bold: bool, italic: bool) -> TextStyle {
         match (bold, italic) {
             (false, false) => Self::Normal,
             (true, false) => Self::Bold,

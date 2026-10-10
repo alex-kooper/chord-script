@@ -169,7 +169,23 @@ fn character_missing_from_the_bundled_font_is_an_error() {
 }
 
 #[test]
-fn chords_are_checked_and_described_by_their_symbol() {
+fn chord_accidentals_are_drawn_from_the_bundled_music_font() {
+    let chord = Inline::new(
+        Chord::new(Note::flat(Letter::B), None, Some(Note::sharp(Letter::F))),
+        TextStyle::Normal,
+    );
+    let key = Line::new(
+        LineLevel::Text,
+        vec![Inline::plain("Key: "), chord],
+        vec![],
+        vec![],
+    );
+    let pdf = render_default(vec![key.into()]);
+    assert!(pdf.contains("+NotoMusic-Regular"));
+}
+
+#[test]
+fn typed_accidentals_are_errors_described_with_chords_as_typed() {
     let chord = Inline::new(
         Chord::new(Note::flat(Letter::B), None, None),
         TextStyle::Normal,
