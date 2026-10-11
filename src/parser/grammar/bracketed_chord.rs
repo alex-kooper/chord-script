@@ -6,13 +6,11 @@
 //! point it stopped.
 
 use super::Extra;
-use super::chord::chord;
-use crate::model::{Chord, Inline, TextStyle};
-use chumsky::error::{LabelError, RichReason};
+use super::symbol::{parse_symbol, shifted};
+use crate::model::{Inline, TextStyle};
 use chumsky::input::Emitter;
 use chumsky::prelude::*;
 use chumsky::text::Char;
-use chumsky::util::MaybeRef;
 
 /// `[chord]`. Never fails once `[` is read: problems are reported, and the
 /// parse fails at the end either way, but the rest of the line is still
@@ -89,46 +87,6 @@ fn checked_chord<'a>(
         ));
     }
     Inline::new(chord, TextStyle::Normal)
-}
-
-/// The chord at the start of `symbol` and the text after it.
-///
-/// A chord that stops at a `(` stopped at a group it could not read, as in
-/// `C7(b9` or `C7((b9))`. Then the chord grammar's own errors say what is
-/// wrong with the group, and there is no chord.
-fn parse_symbol(symbol: &str) -> (Option<(Chord, &str)>, Vec<Rich<'_, char>>) {
-    let (parsed, errors) = chord()
-        .then(any().repeated().to_slice())
-        .parse(symbol)
-        .into_output_errors();
-    match parsed {
-        Some((_, rest)) if rest.starts_with('(') => {
-            (None, chord().then_ignore(end()).parse(symbol).into_errors())
-        }
-        parsed => (parsed, errors),
-    }
-}
-
-/// `error`, found in a chord symbol that starts `offset` bytes into the
-/// source. The symbol was parsed on its own, so where it ended the source has
-/// `after`: the closing `]`, or a space before it.
-fn shifted<'a>(error: &Rich<'a, char>, offset: usize, after: char) -> Rich<'a, char> {
-    let start = error.span().start + offset;
-    let end = error.span().end + offset;
-    match error.reason() {
-        RichReason::ExpectedFound { expected, found } => {
-            let (found, end) = match found {
-                Some(found) => (*found, end),
-                None => (MaybeRef::Val(after), start + after.len_utf8()),
-            };
-            <Rich<'a, char> as LabelError<'a, &'a str, _>>::expected_found(
-                expected.iter().cloned(),
-                Some(found),
-                SimpleSpan::from(start..end),
-            )
-        }
-        RichReason::Custom(message) => Rich::custom(SimpleSpan::from(start..end), message),
-    }
 }
 
 /// Stands in for a `[...]` that holds no valid chord; its error is already

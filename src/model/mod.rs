@@ -37,6 +37,8 @@ impl Chart {
 pub enum Block {
     /// A line of text
     Text(Line),
+    /// A row of bars (`| Am | G |`)
+    Bars(BarRow),
     /// An explicit request for a new page (`#page_break`)
     #[from(skip)]
     PageBreak,

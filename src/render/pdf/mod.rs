@@ -101,7 +101,7 @@ fn check_font_family(family: &str) -> Result<()> {
 fn check_characters(chart: &Chart) -> Result<()> {
     let lines = chart.blocks.iter().filter_map(|block| match block {
         Block::Text(line) => Some(line),
-        Block::PageBreak => None,
+        Block::Bars(_) | Block::PageBreak => None,
     });
     for line in lines {
         let unsupported = line.inlines().find_map(|inline| match &inline.content {

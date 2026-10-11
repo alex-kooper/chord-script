@@ -1,21 +1,19 @@
-use super::{parse_chart, parse_lines, report};
+use super::{error_report, parse_chart, parse_lines, report};
 use crate::model::{Block, LineLevel};
 
-/// The kind of each block, as a short label: `"text"` or `"page_break"`.
-fn kinds(input: &str) -> Vec<&'static str> {
+/// The kind of each block, as a short label: `"text"`, `"bars"` or
+/// `"page_break"`.
+pub(super) fn kinds(input: &str) -> Vec<&'static str> {
     let chart = parse_chart(input).unwrap_or_else(|e| panic!("{input:?} should parse: {e}"));
     chart
         .blocks
         .iter()
         .map(|block| match block {
             Block::Text(_) => "text",
+            Block::Bars(_) => "bars",
             Block::PageBreak => "page_break",
         })
         .collect()
-}
-
-fn error_report(input: &str) -> String {
-    report(&parse_chart(input).expect_err("input should be rejected"))
 }
 
 #[test]

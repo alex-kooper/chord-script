@@ -207,7 +207,7 @@ The brackets hold exactly one chord symbol and nothing else, not even spaces:
 
 ## Bar Rows
 
-> **Status:** designed, not implemented yet.
+> **Status:** parsed, not rendered yet: a chart with bar rows fails to render.
 
 Bars with chords are the heart of a chart, as in iReal Pro or chordsheet.com.
 A bar row starts with `|` and is one row of the chart's grid: every bar stands
@@ -256,8 +256,10 @@ with nothing before them to continue are all drawn. These are errors:
 - `%` with anything else in its bar, e.g. `| % Am |`
 - slots without spaces between them, e.g. `Am_G`: write `| Am G |` for two
   chords in one bar (chordsheet.com's `Am_G`), or `| Am _ G |` for three slots
-- anything in a bar that is not a chord, `_`, `/` or `%`
-- a row that doesn't end with `|`
+- anything in a bar that is not a chord, `_`, `/` or `%`, including the
+  planned repeat signs `|:` and `:|`
+- a row that doesn't end with `|`, and a `|` alone
+- unprintable characters, as in text, and spaces other than space and tab
 
 ### Planned
 

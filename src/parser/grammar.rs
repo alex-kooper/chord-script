@@ -4,10 +4,12 @@
 //! hands back owned model values or owned diagnostics, keeping the parsing
 //! library an implementation detail of `parser`.
 
+mod bar_row;
 mod bracketed_chord;
 mod chord;
 mod directive;
 mod inline;
+mod symbol;
 
 use super::error::Diagnostic;
 use crate::model::{Block, Inline, Line, LineLevel};
@@ -65,13 +67,14 @@ fn source_line<'a>() -> impl Parser<'a, &'a str, Option<Block>, Extra<'a>> {
     line_content()
         .or(indent.ignore_then(line_content()))
         .or(inline_whitespace().to(None))
-        .labelled("line start (===, ==, =, -, #, or //)")
+        .labelled("line start (===, ==, =, -, |, #, or //)")
 }
 
 /// The part of a line after any indentation, dispatched on its prefix.
 fn line_content<'a>() -> impl Parser<'a, &'a str, Option<Block>, Extra<'a>> {
     line_parser()
         .map(|line| Some(Block::Text(line)))
+        .or(bar_row::bar_row().map(|row| Some(Block::Bars(row))))
         .or(directive::directive())
         .or(directive::comment().to(None))
 }

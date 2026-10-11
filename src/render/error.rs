@@ -20,6 +20,10 @@ pub enum RenderError {
         available: f64,
     },
 
+    /// The chart has bar rows, which the renderer cannot draw yet.
+    #[error("bar rows cannot be rendered yet")]
+    BarRowsUnsupported,
+
     /// The configured page cannot exist, e.g. it has zero or negative width.
     #[error("invalid page size {width}pt × {height}pt: both sides must be positive")]
     InvalidPageSize { width: f64, height: f64 },

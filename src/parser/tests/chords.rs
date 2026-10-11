@@ -1,11 +1,7 @@
 use super::styles::styles;
-use super::{assert_columns, parse_chart, parse_line, report, texts};
+use super::{assert_columns, assert_errors, error_report, parse_chart, parse_line, report, texts};
 use crate::model::{Chord, Inline, Letter, Note, TextStyle};
 use TextStyle::{Bold, BoldItalic, Normal};
-
-fn error_report(input: &str) -> String {
-    report(&parse_chart(input).expect_err("input should be rejected"))
-}
 
 #[test]
 fn chord_in_text_is_its_own_inline() {
@@ -53,20 +49,6 @@ fn chords_take_the_surrounding_style() {
         [TextStyle::Italic, BoldItalic]
     );
     assert_eq!(styles(&parse_line("= *a [B] c*").left), [Bold, Bold, Bold]);
-}
-
-/// Assert that `input` fails with exactly the errors described by `messages`,
-/// each found somewhere in the report.
-fn assert_errors(input: &str, messages: &[&str]) {
-    let error = parse_chart(input).expect_err("input should be rejected");
-    let report = report(&error);
-    assert_eq!(error.len(), messages.len(), "{input:?}: {report}");
-    for message in messages {
-        assert!(
-            report.contains(message),
-            "{input:?} lacks {message:?}: {report}"
-        );
-    }
 }
 
 #[test]

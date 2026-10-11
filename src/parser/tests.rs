@@ -1,6 +1,7 @@
 use super::{ParseError, ReportStyle, parse_chart};
 use crate::model::{Block, Content, Inline, Line, LineLevel};
 
+mod bars;
 mod characters;
 mod chords;
 mod directives;
@@ -8,6 +9,24 @@ mod styles;
 
 fn report(error: &ParseError) -> String {
     error.report("test", ReportStyle::Plain)
+}
+
+fn error_report(input: &str) -> String {
+    report(&parse_chart(input).expect_err("input should be rejected"))
+}
+
+/// Assert that `input` fails with exactly the errors described by `messages`,
+/// each found somewhere in the report.
+fn assert_errors(input: &str, messages: &[&str]) {
+    let error = parse_chart(input).expect_err("input should be rejected");
+    let report = report(&error);
+    assert_eq!(error.len(), messages.len(), "{input:?}: {report}");
+    for message in messages {
+        assert!(
+            report.contains(message),
+            "{input:?} lacks {message:?}: {report}"
+        );
+    }
 }
 
 /// Parse input that must contain only text lines.

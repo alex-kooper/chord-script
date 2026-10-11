@@ -29,7 +29,8 @@ pub(super) struct Page<'c> {
 /// start the next page, since that space only exists because of the break.
 ///
 /// Fails if a line is taller than the space between a page's margins, since
-/// no page could hold it.
+/// no page could hold it, or if the chart has bar rows, which are not drawn
+/// yet.
 pub(super) fn paginate<'c>(
     blocks: &'c [Block],
     page: &LayoutConfig,
@@ -39,6 +40,7 @@ pub(super) fn paginate<'c>(
     for block in blocks {
         match block {
             Block::Text(line) => paginator.place(line, height_of(line))?,
+            Block::Bars(_) => return Err(RenderError::BarRowsUnsupported),
             Block::PageBreak => paginator.break_page(Break::Explicit),
         }
     }

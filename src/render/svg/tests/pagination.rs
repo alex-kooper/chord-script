@@ -1,8 +1,9 @@
 use super::super::layout::{Page, paginate};
 use super::{chart_of, left_line};
-use crate::model::{Block, Chart, Inline, Line, LineLevel};
+use crate::model::{Bar, BarRow, Block, Chart, Inline, Line, LineLevel};
 use crate::render::inline::typed_text;
 use crate::render::{LayoutConfig, RenderConfig, RenderError, SvgGenerator};
+use vec1::vec1;
 
 /// A 100pt-tall page with 10pt margins: baselines may go down to y = 90, and
 /// 80pt fit between the margins.
@@ -216,6 +217,15 @@ fn each_rendered_page_is_a_standalone_svg() {
     }
     assert!(pages[0].contains("first") && !pages[0].contains("second"));
     assert!(pages[1].contains("second") && !pages[1].contains("first"));
+}
+
+#[test]
+fn bar_rows_are_not_rendered_yet() {
+    let row = BarRow::new(vec1![Bar::Repeat]);
+    assert_eq!(
+        paginate(&[text("a"), row.into()], &small_page(), height_of).err(),
+        Some(RenderError::BarRowsUnsupported)
+    );
 }
 
 #[test]
