@@ -2,11 +2,13 @@
 
 use derive_more::From;
 
+mod bar;
 mod chord;
 mod inline;
 mod line;
 mod note;
 
+pub use bar::{Bar, BarRow, Slot};
 pub use chord::{Chord, ChordQuality, ChordQualityError, is_quality_char};
 pub use inline::{Content, Inline, InlineText, InlineTextError, TextStyle, is_displayable};
 pub use line::{Line, LineLevel};

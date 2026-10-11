@@ -75,7 +75,7 @@ impl Stack {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(
     not(test),
-    expect(dead_code, reason = "chord lines will hang the bass below")
+    expect(dead_code, reason = "bar rows will hang the bass below")
 )]
 pub(super) enum BassPlacement {
     /// Hanging below the baseline, the slash tucked under the root, as iReal

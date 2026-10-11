@@ -15,7 +15,8 @@ use svg::node::element::{TSpan, Text as SvgText};
 /// The vertical space a line occupies.
 ///
 /// Today this is just the per-level line height; when richer line kinds arrive
-/// (e.g. chord lines with a bar row plus a chord row) this becomes kind-specific.
+/// (e.g. bar rows, with room for the bass hanging below their chords) this
+/// becomes kind-specific.
 pub(super) fn height_of(line: &Line, config: &RenderConfig) -> f64 {
     config.line_height_for_level(line.level)
 }

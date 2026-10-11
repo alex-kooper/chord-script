@@ -23,6 +23,7 @@ other layers; nothing depends on the CLI.
 - Prefer domain-specific types over primitives (`String`, `usize`, etc.), especially in the model layer. Use newtypes, enums, and structs to make invalid states unrepresentable.
 - Use [`derive_more`](https://docs.rs/derive_more) to reduce boilerplate on structs and enums (`From`, `Display`, `Into`, `AsRef`, etc.).
 - Use [`nutype`](https://docs.rs/nutype) for validated newtypes with sanitization and constraints (e.g. non-empty strings).
+- Use [`vec1::Vec1`](https://docs.rs/vec1) for non-empty collections rather than a validated `nutype`: emptiness can't be expressed, and `first()`/`last()` need no `Option`.
 - Inline `#[cfg(test)] mod tests { ... }` is fine while the file stays within 300 lines. When tests push a file over the limit, move them to a separate `tests.rs` (or a `tests/` directory for larger suites) next to the code under test rather than splitting the code. Integration tests go in the top-level `tests/`.
 
 ### Error handling

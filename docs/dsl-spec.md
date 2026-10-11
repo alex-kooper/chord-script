@@ -25,7 +25,7 @@ Every line's kind is decided by how it starts, in column 0:
 | Line starts with | Kind | Section |
 |------------------|------|---------|
 | `===`, `==`, `=`, `-` (then a space or end of line) | Text line | [Text Lines](#text-lines) |
-| `\|` | Chord line | [Chord Lines](#chord-lines) |
+| `\|` | Bar row | [Bar Rows](#bar-rows) |
 | `#` | Directive | [Directives](#directives) |
 | `//` | Comment | [Comments](#comments) |
 | nothing, or only whitespace | Blank line (ignored) | [Line Rules](#line-rules) |
@@ -205,27 +205,85 @@ The brackets hold exactly one chord symbol and nothing else, not even spaces:
 
 ---
 
-## Chord Lines
+## Bar Rows
 
-> **Status:** draft, not implemented yet. The syntax below comes from
-> chordsheet.com and will be revised for explicit bars.
+> **Status:** designed, not implemented yet.
 
-A chord line starts with `|`. Unlike chordsheet.com, bars are explicit: every
-bar is delimited by `|`, and `%` (repeat previous bar) stands inside a bar:
+Bars with chords are the heart of a chart, as in iReal Pro or chordsheet.com.
+A bar row starts with `|` and is one row of the chart's grid: every bar stands
+between two `|`, and the row is drawn as bars of equal width, as many as it
+has.
 
 ```
-| Am | % | G | % |
+| Am _ _ A7 | Dm | G7 | C |
+| % | % | G G7 | C |
 ```
 
-### Basic Chord Syntax (from chordsheet.com)
+A bar holds either slots or a repeat:
+
+| Bar | Meaning | Example |
+|-----|---------|---------|
+| Slots, separated by spaces | The bar is split evenly into one slot per item | `\| Am _ _ A7 \|`: A7 on the last quarter |
+| `%` alone | The previous bar's chords again | `\| Am \| % \|` |
+
+| Slot | Meaning | Drawn as |
+|------|---------|----------|
+| A chord | The chord starts here | The chord |
+| `_` | The chord before continues | Nothing |
+| `/` | The chord before continues on this beat | A beat slash |
+
+- Chords are written as in [Inline Chords](#inline-chords), without the
+  brackets: `| Bb^7 | Eb7(#11) | Am7/G |`.
+- Slots are positions, not beats: `| Am Dm |` is two halves of the bar, the
+  same as `| Am _ Dm _ |`. `_` is only needed when chords are not evenly
+  spaced: `| A _ _ D |` puts D on beat 4 of a 4/4 bar, `| _ B _ _ |` puts B
+  on beat 2.
+- `/` never moves a chord, it only shows the beats: `| Am / Dm / |` places
+  its chords like `| Am Dm |`. Slots after the last chord count too:
+  `| Bo / Do7 / |` has Do7 on beat 3, while `| Bo / Do7 |` splits the bar in
+  thirds.
+- `%` repeats the previous bar in the chart, even in an earlier row: text
+  lines and page breaks in between are skipped.
+- Spaces around `|` are optional: `|Am|G|` is the same as `| Am | G |`. An
+  empty bar needs at least one space, `| |`: `||` is reserved for the planned
+  double bar line.
+
+Making musical sense is up to the author: whatever can be drawn is drawn as
+written. An empty bar (`| |`), a bar starting with `_` or `/`, and `%` or `/`
+with nothing before them to continue are all drawn. These are errors:
+
+- `||`, until double bar lines arrive: write `| |` for an empty bar
+- `%` with anything else in its bar, e.g. `| % Am |`
+- slots without spaces between them, e.g. `Am_G`: write `| Am G |` for two
+  chords in one bar (chordsheet.com's `Am_G`), or `| Am _ G |` for three slots
+- anything in a bar that is not a chord, `_`, `/` or `%`
+- a row that doesn't end with `|`
+
+### Planned
+
+In rough order:
+
+1. Spans: invisible bars for alignment, written with a width, e.g.
+   `{2} | F | E7 |` puts two bars under the last two of a four-bar row above.
+   Spans may later carry text, left, centered, or right aligned. The syntax is
+   not settled.
+2. Repeat signs (`|:`, `:|`, `:|:`), double (`||`) and final bar lines.
+3. Endings (`1.`, `2.`) and repeat counts.
+4. Lyrics and other symbols (dynamics, fermatas) in their own rows, aligned
+   with the bars and chords.
+
+### Ideas from chordsheet.com
+
+chordsheet.com has no bar lines: every chord is a bar, `_` joins chords into
+one bar, `*` holds the previous chord, and `,` is a beat slash. So `Am_Dm`
+there is `| Am Dm |` here, `*_B_*_*` is `| _ B _ _ |`, and `Bdim,Ddim7, ,,,,`
+is `| Bdim / Ddim7 / | / / / / |`.
+
+Its other features are not decided; they are kept for reference and would
+need revising for explicit bars:
 
 | Syntax | Meaning |
 |--------|---------|
-| `Am`, `Cmaj7`, `F#m7b5` | Chord names |
-| `_` | Beat/subdivision separator |
-| `,` | Empty beat / rest |
-| `*` | Repeat previous chord |
-| `%` | Repeat previous bar (inside a bar: `\| % \|`) |
 | `( ) Nx` | Repeat group N times |
 | `1.` `2.` | First/second endings |
 | `<Chord` | Push (anticipation) |
@@ -235,11 +293,7 @@ bar is delimited by `|`, and `%` (repeat previous bar) stands inside a bar:
 | `fermata` | Hold |
 | `"text"` | Inline chord annotation |
 
-### Chord Line Examples
-
 ```
-Am %                              (Am for one bar, repeat)
-Am_G_F_G                          (four chords, one per beat)
 Am,,, ,<Em,, ,<G,, Em, _ G,       (complex rhythm with pushes)
 (Am G F F _ G) 4x                 (repeat group 4 times)
 (F G Em  1. F  2. E)              (with endings)
@@ -247,8 +301,6 @@ Am <> G <> F                      (accented chords)
 Am? Dm?                           (ghost/optional chords)
 (Am G F F _ G) 4x Am fermata      (ending with fermata)
 ```
-
-These examples predate explicit bars and will be rewritten with `|`.
 
 ---
 
@@ -314,6 +366,9 @@ of the text.
 ---
 
 ## Complete Example
+
+> The chord rows below use the earlier chordsheet.com syntax and will be
+> rewritten as [bar rows](#bar-rows).
 
 ```
 === <Rolling in the Deep>
@@ -408,7 +463,7 @@ the `< >` center.
 
 ### Why does every line kind have its own prefix?
 
-Text lines start with a weight marker, chord lines with `|`, directives with
+Text lines start with a weight marker, bar rows with `|`, directives with
 `#`, and comments with `//`. The first characters alone decide what a line is,
 so the kinds can never be confused, and new kinds can be added without
 changing the meaning of existing charts. It also makes errors precise: a line
@@ -416,10 +471,28 @@ with no known prefix is reported, instead of being read as chords.
 
 ### Why explicit bars (`|`)?
 
-chordsheet.com infers bars from spacing. Explicit bar lines make the form
-visible in the source, give chord lines an unambiguous prefix, and keep `%`
+In chordsheet.com every chord is a bar, and `_` joins chords into one bar.
+That is very concise with one chord per bar, but once bars hold several
+chords, holds, and annotations, it gets hard to see where a bar ends:
+`*_*_C_* E F G` versus `| _ _ C _ | E | F | G |`. Explicit bar lines make the
+form visible in the source, give bar rows an unambiguous prefix, and keep `%`
 (repeat previous bar) inside a bar, where it can't be confused with anything
 at the start of a line.
+
+### Why `_` and `/` inside bars?
+
+`_` holds the chord before it without drawing anything; it places chords that
+are not evenly spaced, like chordsheet.com's `*`. `/` holds it too but draws
+a beat slash, like chordsheet.com's `,` and the slashes on jazz and Nashville
+charts. Spaces separate slots, so `_` is free for the hold, and `/` can't be
+confused with a slash chord: `Am/E` is one chord, `Am /` a chord and a slash.
+
+### Why does the model accept musical nonsense?
+
+The model holds what the author wrote, as text lines hold "Verse" as plain
+text rather than as a section. Only what can't be drawn, or would be drawn
+ambiguously, is an error. A `%` in the first bar or a bar of slashes with no
+chord before it is drawn as written, and the mistake is visible on the page.
 
 ### Why `#` directives and `//` comments?
 
@@ -433,7 +506,7 @@ Alternatives considered:
 - ChordPro's `{new_page}` / `{key: Am}`: the standard in songbook tools, but
   heavier to type and read.
 - ABC's `%%newpage` with `%` comments: good music precedent, but `%` already
-  means "repeat previous bar" in chord lines.
+  means "repeat previous bar" in bar rows.
 - LaTeX's `\newpage`: brace arguments are heavy, and `\` is already the escape
   character in text.
 
@@ -446,7 +519,7 @@ directive has no space after the `#`.
 
 ```
 document     = line (NEWLINE line)*
-line         = text_line | chord_line | directive | comment | blank_line
+line         = text_line | bar_row | directive | comment | blank_line
 blank_line   = (SP | TAB)*
 
 directive    = "#" name ( (SP | TAB)+ value )?
@@ -476,10 +549,10 @@ plain_char   = any character except "*", "_", "<", ">", "[", "]", NEWLINE
 
 NEWLINE      = "\r\n" | "\n" | "\r" | VT | FF | NEL | LS | PS
 
-chord_line   = "|" (bar "|")+
-bar          = TBD                          # chords, %, pushes, …
-
-# Chord syntax TBD - largely follows chordsheet.com, with explicit bars
+bar_row      = "|" ( WS* bar WS* "|" )+ WS*
+bar          = "%" | slot ( WS+ slot )* | WS    # WS alone: an empty bar
+slot         = chord | "_" | "/"
+WS           = SP | TAB
 ```
 
 ---
