@@ -1,7 +1,8 @@
 use super::*;
 use crate::model::{Block, Chart, Inline, Line, LineLevel, TextStyle};
-use crate::render::{FontStyle, LayoutConfig};
+use crate::render::{BarRowStyle, FontStyle, LayoutConfig};
 
+mod bars;
 mod chords;
 mod pagination;
 
@@ -126,6 +127,10 @@ fn test_custom_config() {
             size: 12.0,
             weight: "normal".to_string(),
             line_height: 18.0,
+        },
+        bar_row: BarRowStyle {
+            chord_size: 16.0,
+            gap: 4.0,
         },
     };
     let chart = chart_of(vec![left_line(

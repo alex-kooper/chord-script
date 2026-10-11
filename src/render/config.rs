@@ -35,6 +35,25 @@ impl Default for LayoutConfig {
     }
 }
 
+/// How bar rows are drawn, in points.
+#[derive(Debug, Clone)]
+pub struct BarRowStyle {
+    /// The font size of the chords; everything else in a bar row, from the
+    /// row's height to the bar lines' thickness, scales with it.
+    pub chord_size: f64,
+    /// The space above each bar row, keeping it apart from the row before.
+    pub gap: f64,
+}
+
+impl Default for BarRowStyle {
+    fn default() -> Self {
+        Self {
+            chord_size: 20.0,
+            gap: 6.0,
+        }
+    }
+}
+
 /// How a chart is drawn, whatever the output format.
 #[derive(Debug, Clone)]
 pub struct RenderConfig {
@@ -54,6 +73,8 @@ pub struct RenderConfig {
     pub header2: FontStyle,
     pub header3: FontStyle,
     pub text: FontStyle,
+
+    pub bar_row: BarRowStyle,
 }
 
 impl Default for RenderConfig {
@@ -76,6 +97,7 @@ impl Default for RenderConfig {
             header2: regular(14.0, 20.0),
             header3: regular(11.0, 16.0),
             text: regular(10.0, 14.0),
+            bar_row: BarRowStyle::default(),
         }
     }
 }

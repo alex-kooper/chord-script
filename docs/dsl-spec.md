@@ -207,8 +207,6 @@ The brackets hold exactly one chord symbol and nothing else, not even spaces:
 
 ## Bar Rows
 
-> **Status:** parsed, not rendered yet: a chart with bar rows fails to render.
-
 Bars with chords are the heart of a chart, as in iReal Pro or chordsheet.com.
 A bar row starts with `|` and is one row of the chart's grid: every bar stands
 between two `|`, and the row is drawn as bars of equal width, as many as it
@@ -260,6 +258,24 @@ with nothing before them to continue are all drawn. These are errors:
   planned repeat signs `|:` and `:|`
 - a row that doesn't end with `|`, and a `|` alone
 - unprintable characters, as in text, and spaces other than space and tab
+
+### Drawing
+
+Bar rows are drawn in the style of iReal Pro:
+
+- A row spans the page between its margins, and its bars split that width
+  evenly. Rows with the same number of bars line up.
+- A chord or `/` starts a little after the start of its slot, so a beat lands
+  at the same place in every bar with as many slots. `%` is drawn as the
+  one-bar repeat sign, centered in its bar.
+- A chord may reach over the `_` slots after it. A chord too wide for the room
+  before the next chord or `/` in its bar, or before the bar line, is squeezed
+  horizontally to fit; its height stays the same. If a row looks cramped, give
+  it fewer bars.
+- The bass hangs below the root, a little to the right. Bar lines run from
+  the top of the chords to about the middle of the bass.
+- Every bar row has the same height, with or without a bass, and a small gap
+  above it. For more space between rows, add an empty line such as `==`.
 
 ### Planned
 
@@ -348,8 +364,8 @@ on purpose.
 At an automatic break, spacers that would start the next page are dropped:
 that space was only meant to separate content on the previous page.
 
-A single line taller than the space between a page's margins is an error; the
-chart is not rendered.
+A single line or bar row taller than the space between a page's margins is an
+error; the chart is not rendered.
 
 ---
 

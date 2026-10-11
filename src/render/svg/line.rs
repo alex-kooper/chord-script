@@ -12,11 +12,7 @@ use crate::render::fonts::{self, Font};
 use svg::node::Blob;
 use svg::node::element::{TSpan, Text as SvgText};
 
-/// The vertical space a line occupies.
-///
-/// Today this is just the per-level line height; when richer line kinds arrive
-/// (e.g. bar rows, with room for the bass hanging below their chords) this
-/// becomes kind-specific.
+/// The vertical space a line occupies: its level's line height.
 pub(super) fn height_of(line: &Line, config: &RenderConfig) -> f64 {
     config.line_height_for_level(line.level)
 }
@@ -121,7 +117,8 @@ fn is_bold_weight(weight: &str) -> bool {
     }
 }
 
-fn render_piece(piece: &Piece, style: TextStyle, column_size: f64) -> TSpan {
+/// One piece of a chord as a tspan of a text element drawn at `column_size`.
+pub(super) fn render_piece(piece: &Piece, style: TextStyle, column_size: f64) -> TSpan {
     let mut tspan = styled(TSpan::new(piece.text.as_str()), style);
     if piece.font == Font::Music {
         tspan = tspan.set("font-family", fonts::MUSIC_FAMILY);
@@ -148,7 +145,7 @@ fn styled(tspan: TSpan, style: TextStyle) -> TSpan {
 }
 
 /// `value` to a thousandth of a point, which keeps the SVG readable.
-fn rounded(value: f64) -> f64 {
+pub(super) fn rounded(value: f64) -> f64 {
     (value * 1000.0).round() / 1000.0
 }
 

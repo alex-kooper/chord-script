@@ -28,6 +28,6 @@ target
 # macOS Finder metadata
 .DS_Store
 
-# Rendered example output; regenerate with `chords examples/test_song.chords`
+# Rendered example output; regenerate with `chords examples/*.chords`
 examples/*.svg
 examples/*.pdf

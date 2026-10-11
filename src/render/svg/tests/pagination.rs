@@ -1,6 +1,6 @@
-use super::super::layout::{Page, paginate};
+use super::super::layout::{Page, Row, paginate};
 use super::{chart_of, left_line};
-use crate::model::{Bar, BarRow, Block, Chart, Inline, Line, LineLevel};
+use crate::model::{Bar, BarRow, Block, Chart, Inline, LineLevel};
 use crate::render::inline::typed_text;
 use crate::render::{LayoutConfig, RenderConfig, RenderError, SvgGenerator};
 use vec1::vec1;
@@ -16,12 +16,19 @@ fn small_page() -> LayoutConfig {
     }
 }
 
-/// Fixed heights: `Header1` lines are taller than a whole page, all others 20pt.
-fn height_of(line: &Line) -> f64 {
-    match line.level {
-        LineLevel::Header1 => 200.0,
-        _ => 20.0,
+/// Fixed heights: `Header1` lines are taller than a whole page, bar rows are
+/// 30pt, and all other lines 20pt.
+fn height_of(row: Row) -> f64 {
+    match row {
+        Row::Text(line) if line.level == LineLevel::Header1 => 200.0,
+        Row::Text(_) => 20.0,
+        Row::Bars(_) => 30.0,
     }
+}
+
+/// A one-bar row holding `%`.
+fn bars() -> Block {
+    BarRow::new(vec1![Bar::Repeat]).into()
 }
 
 fn text(content: &str) -> Block {
@@ -37,7 +44,8 @@ fn tall(content: &str) -> Block {
     left_line(LineLevel::Header1, vec![Inline::plain(content)]).into()
 }
 
-/// Each page as its lines' `(text, y)` pairs; a spacer's text is `""`.
+/// Each page as its rows' `(text, y)` pairs; a spacer's text is `""`, and a
+/// bar row's is the row as written.
 fn layout(blocks: &[Block]) -> Vec<Vec<(String, f64)>> {
     paginate(blocks, &small_page(), height_of)
         .expect("blocks should fit on pages")
@@ -47,10 +55,13 @@ fn layout(blocks: &[Block]) -> Vec<Vec<(String, f64)>> {
 }
 
 fn page_contents(page: &Page) -> Vec<(String, f64)> {
-    page.lines
+    page.rows
         .iter()
         .map(|placed| {
-            let text: String = placed.line.left.iter().map(typed_text).collect();
+            let text = match placed.row {
+                Row::Text(line) => line.left.iter().map(typed_text).collect(),
+                Row::Bars(bars) => bars.to_string(),
+            };
             (text, placed.y)
         })
         .collect()
@@ -100,8 +111,8 @@ fn line_taller_than_a_page_is_an_error() {
         .expect_err("a 200pt line cannot fit in 80pt");
     assert_eq!(
         error,
-        RenderError::LineTallerThanPage {
-            line: "line \"huge\"".to_string(),
+        RenderError::RowTallerThanPage {
+            row: "line \"huge\"".to_string(),
             height: 200.0,
             available: 80.0,
         }
@@ -220,11 +231,29 @@ fn each_rendered_page_is_a_standalone_svg() {
 }
 
 #[test]
-fn bar_rows_are_not_rendered_yet() {
-    let row = BarRow::new(vec1![Bar::Repeat]);
+fn bar_rows_stack_with_lines_and_break_like_them() {
     assert_eq!(
-        paginate(&[text("a"), row.into()], &small_page(), height_of).err(),
-        Some(RenderError::BarRowsUnsupported)
+        layout(&[text("a"), bars(), text("b")]),
+        [vec![
+            entry("a", 30.0),
+            entry("| % |", 60.0),
+            entry("b", 80.0)
+        ]]
+    );
+    let pages = layout(&[text("a"), text("b"), text("c"), bars()]);
+    assert_eq!(pages[1], [entry("| % |", 40.0)]);
+}
+
+#[test]
+fn bar_row_taller_than_a_page_is_an_error_naming_the_row() {
+    let page = LayoutConfig {
+        height: 40.0,
+        ..small_page()
+    };
+    let error = paginate(&[bars()], &page, height_of).expect_err("30pt cannot fit in 20pt");
+    assert_eq!(
+        error.to_string(),
+        "bar row \"| % |\" is 30pt tall, but a page has only 20pt between its margins"
     );
 }
 

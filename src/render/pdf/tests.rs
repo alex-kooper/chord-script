@@ -1,5 +1,8 @@
 use super::*;
-use crate::model::{Block, Chord, Inline, Letter, Line, LineLevel, Note, TextStyle};
+use crate::model::{
+    Bar, BarRow, Block, Chord, Inline, Letter, Line, LineLevel, Note, Slot, TextStyle,
+};
+use vec1::vec1;
 
 fn text(content: &str) -> Block {
     Line::new(
@@ -185,6 +188,24 @@ fn chord_accidentals_are_drawn_from_the_bundled_music_font() {
 }
 
 #[test]
+fn bar_rows_draw_their_repeat_sign_from_the_bundled_music_font() {
+    let row = BarRow::new(vec1![
+        Bar::Slots(vec![Slot::Chord(Chord::new(
+            Note::natural(Letter::C),
+            None,
+            None
+        ))]),
+        Bar::Repeat,
+    ]);
+    let pdf = render_default(vec![row.into()]);
+    assert_eq!(page_count(&pdf), 1);
+    assert!(
+        pdf.contains("+NotoMusic-Regular"),
+        "no ♭ or ♯ here, only `%`"
+    );
+}
+
+#[test]
 fn typed_accidentals_are_errors_described_with_chords_as_typed() {
     let chord = Inline::new(
         Chord::new(Note::flat(Letter::B), None, None),
@@ -256,7 +277,7 @@ fn layout_errors_are_reported_as_for_svg() {
         .render(&Chart::new(vec![title.into()]))
         .expect_err("title is taller than the page");
     assert!(
-        matches!(error, RenderError::LineTallerThanPage { .. }),
+        matches!(error, RenderError::RowTallerThanPage { .. }),
         "{error}"
     );
 }

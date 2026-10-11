@@ -4,6 +4,7 @@
 //! (or `with_defaults()`) and `render(&Chart) -> Result<_>`. They share the
 //! configuration, the errors, and the bundled fonts.
 
+mod bar_row;
 mod chord;
 mod config;
 mod error;
@@ -12,7 +13,7 @@ mod inline;
 mod pdf;
 mod svg;
 
-pub use config::{FontStyle, LayoutConfig, RenderConfig};
+pub use config::{BarRowStyle, FontStyle, LayoutConfig, RenderConfig};
 pub use error::{RenderError, Result};
 pub use pdf::{PdfDocument, PdfGenerator};
 pub use svg::{SvgGenerator, SvgPage};

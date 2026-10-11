@@ -50,7 +50,7 @@ impl PdfGenerator {
     /// There is always at least one page; an empty chart renders as one blank
     /// page. Fails rather than produce a PDF that differs from the chart: if
     /// the page size is not positive, if the font family is not bundled, if
-    /// the text uses a character the bundled font cannot draw, if a line is
+    /// the text uses a character the bundled font cannot draw, if a row is
     /// too tall to fit on any page, or if the PDF cannot be written.
     pub fn render(&self, chart: &Chart) -> Result<PdfDocument> {
         let page_size = page_size(&self.config.layout)?;

@@ -23,7 +23,8 @@ const QUALITY_RISE: f64 = -0.12;
 const QUALITY_ACCIDENTAL_SIZE: f64 = 1.5;
 const QUALITY_ACCIDENTAL_RISE: f64 = 0.0;
 const BASS_BELOW_SIZE: f64 = 0.6;
-const BASS_BELOW_RISE: f64 = -0.55;
+/// Low enough for the bass to clear the lowered quality, parentheses included
+const BASS_BELOW_RISE: f64 = -0.65;
 /// Where the slash starts, as a fraction of the root letter's width
 const BASS_BELOW_INDENT: f64 = 0.5;
 const BASS_AFTER_SIZE: f64 = 0.8;
@@ -73,10 +74,6 @@ impl Stack {
 
 /// Where a chord's bass goes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(
-    not(test),
-    expect(dead_code, reason = "bar rows will hang the bass below")
-)]
 pub(super) enum BassPlacement {
     /// Hanging below the baseline, the slash tucked under the root, as iReal
     /// Pro draws it; this needs room below the line.
@@ -182,6 +179,12 @@ fn bass_pieces(bass: Note, style: TextStyle, size: f64, rise: f64) -> Vec<Piece>
 /// chord is than its pieces laid end to end.
 pub(super) fn overlap(pieces: &[Piece]) -> f64 {
     -pieces.iter().map(|piece| piece.dx).sum::<f64>()
+}
+
+/// How wide the chord drawn from `pieces` is, from the root's start to the
+/// rightmost piece's end.
+pub(super) fn width(pieces: &[Piece]) -> f64 {
+    pieces.iter().map(Piece::width).sum::<f64>() - overlap(pieces)
 }
 
 #[cfg(test)]

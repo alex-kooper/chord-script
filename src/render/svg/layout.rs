@@ -1,24 +1,40 @@
-//! Vertical page layout: which page each line lands on, and at what `y`.
+//! Vertical page layout: which page each row lands on, and at what `y`.
 //!
 //! [`paginate`] decides the physical pages. An explicit [`Block::PageBreak`]
-//! always starts a new page, and so does a line that would cross the bottom
-//! margin. It knows only vertical space: each line's height comes from the
-//! caller, so how lines are drawn stays in [`super::line`].
+//! always starts a new page, and so does a row that would cross the bottom
+//! margin. It knows only vertical space: each row's height comes from the
+//! caller, so how rows are drawn stays in [`super::line`] and
+//! [`super::bar_row`].
 
-use crate::model::{Block, Line};
+use crate::model::{BarRow, Block, Line};
 use crate::render::{LayoutConfig, RenderError, Result};
 
-/// A line positioned on a page at the baseline `y` it is drawn at.
+/// One row of a page: a line of text or a row of bars.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub(super) struct PlacedLine<'c> {
-    pub(super) line: &'c Line,
+pub(super) enum Row<'c> {
+    Text(&'c Line),
+    Bars(&'c BarRow),
+}
+
+impl Row<'_> {
+    /// Whether the row is an empty line, which only adds space.
+    fn is_spacer(self) -> bool {
+        matches!(self, Row::Text(line) if line.is_empty())
+    }
+}
+
+/// A row positioned on a page, with the `y` of its bottom edge: the baseline
+/// of a text line.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(super) struct PlacedRow<'c> {
+    pub(super) row: Row<'c>,
     pub(super) y: f64,
 }
 
-/// The lines of one physical page, top to bottom.
+/// The rows of one physical page, top to bottom.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub(super) struct Page<'c> {
-    pub(super) lines: Vec<PlacedLine<'c>>,
+    pub(super) rows: Vec<PlacedRow<'c>>,
 }
 
 /// Lay `blocks` out onto pages. There is always at least one page.
@@ -28,21 +44,24 @@ pub(super) struct Page<'c> {
 /// An automatic break drops the spacers (empty lines) that would otherwise
 /// start the next page, since that space only exists because of the break.
 ///
-/// Fails if a line is taller than the space between a page's margins, since
-/// no page could hold it, or if the chart has bar rows, which are not drawn
-/// yet.
+/// Fails if a row is taller than the space between a page's margins, since
+/// no page could hold it.
 pub(super) fn paginate<'c>(
     blocks: &'c [Block],
     page: &LayoutConfig,
-    height_of: impl Fn(&Line) -> f64,
+    height_of: impl Fn(Row) -> f64,
 ) -> Result<Vec<Page<'c>>> {
     let mut paginator = Paginator::new(page);
     for block in blocks {
-        match block {
-            Block::Text(line) => paginator.place(line, height_of(line))?,
-            Block::Bars(_) => return Err(RenderError::BarRowsUnsupported),
-            Block::PageBreak => paginator.break_page(Break::Explicit),
-        }
+        let row = match block {
+            Block::Text(line) => Row::Text(line),
+            Block::Bars(bars) => Row::Bars(bars),
+            Block::PageBreak => {
+                paginator.break_page(Break::Explicit);
+                continue;
+            }
+        };
+        paginator.place(row, height_of(row))?;
     }
     Ok(paginator.finish())
 }
@@ -52,7 +71,7 @@ pub(super) fn paginate<'c>(
 enum Break {
     /// The author wrote `#page_break`.
     Explicit,
-    /// The next line did not fit.
+    /// The next row did not fit.
     Automatic,
 }
 
@@ -62,7 +81,8 @@ struct Paginator<'c, 'p> {
     finished: Vec<Page<'c>>,
     current: Page<'c>,
     y: f64,
-    /// Set by an automatic break until the first line with text is placed.
+    /// Set by an automatic break until the first row that is not a spacer is
+    /// placed.
     dropping_spacers: bool,
 }
 
@@ -77,24 +97,27 @@ impl<'c, 'p> Paginator<'c, 'p> {
         }
     }
 
-    /// Place a line below the previous one, first moving to a new page if its
-    /// baseline would cross the bottom margin.
-    fn place(&mut self, line: &'c Line, height: f64) -> Result<()> {
+    /// Place a row below the previous one, first moving to a new page if its
+    /// bottom would cross the bottom margin.
+    fn place(&mut self, row: Row<'c>, height: f64) -> Result<()> {
         let available = self.page.height - 2.0 * self.page.margin_vertical;
         if height > available {
-            return Err(RenderError::line_taller_than_page(line, height, available));
+            return Err(match row {
+                Row::Text(line) => RenderError::line_taller_than_page(line, height, available),
+                Row::Bars(bars) => RenderError::bar_row_taller_than_page(bars, height, available),
+            });
         }
 
         if self.y + height > self.page.height - self.page.margin_vertical {
             self.break_page(Break::Automatic);
         }
-        if self.dropping_spacers && line.is_empty() {
+        if self.dropping_spacers && row.is_spacer() {
             return Ok(());
         }
 
         self.dropping_spacers = false;
         self.y += height;
-        self.current.lines.push(PlacedLine { line, y: self.y });
+        self.current.rows.push(PlacedRow { row, y: self.y });
         Ok(())
     }
 

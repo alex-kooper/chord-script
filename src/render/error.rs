@@ -1,7 +1,8 @@
 //! Errors that stop a chart from being rendered, in any output format.
 
+use super::BarRowStyle;
 use super::inline::typed_text;
-use crate::model::Line;
+use crate::model::{BarRow, Line};
 use thiserror::Error;
 
 /// Result type alias for rendering operations
@@ -10,23 +11,26 @@ pub type Result<T> = std::result::Result<T, RenderError>;
 /// Error returned when a chart cannot be rendered.
 #[derive(Debug, Clone, PartialEq, Error)]
 pub enum RenderError {
-    /// A single line needs more vertical space than an empty page offers, so
-    /// no page can hold it.
-    #[error("{line} is {height}pt tall, but a page has only {available}pt between its margins")]
-    LineTallerThanPage {
-        /// A short description of the line, for the message
-        line: String,
+    /// A single row, a line of text or a row of bars, needs more vertical
+    /// space than an empty page offers, so no page can hold it.
+    #[error("{row} is {height}pt tall, but a page has only {available}pt between its margins")]
+    RowTallerThanPage {
+        /// A short description of the row, for the message
+        row: String,
         height: f64,
         available: f64,
     },
 
-    /// The chart has bar rows, which the renderer cannot draw yet.
-    #[error("bar rows cannot be rendered yet")]
-    BarRowsUnsupported,
-
     /// The configured page cannot exist, e.g. it has zero or negative width.
     #[error("invalid page size {width}pt × {height}pt: both sides must be positive")]
     InvalidPageSize { width: f64, height: f64 },
+
+    /// A bar row cannot be drawn: its chord size is not positive, or its gap
+    /// is negative.
+    #[error(
+        "invalid bar row style: chord size {chord_size}pt must be positive and gap {gap}pt must not be negative"
+    )]
+    InvalidBarRowStyle { chord_size: f64, gap: f64 },
 
     /// No family in the configured font family list is a bundled font, so a
     /// PDF would have no text.
@@ -50,9 +54,24 @@ pub enum RenderError {
 }
 
 impl RenderError {
+    pub(super) fn invalid_bar_row_style(style: &BarRowStyle) -> Self {
+        Self::InvalidBarRowStyle {
+            chord_size: style.chord_size,
+            gap: style.gap,
+        }
+    }
+
     pub(super) fn line_taller_than_page(line: &Line, height: f64, available: f64) -> Self {
-        Self::LineTallerThanPage {
-            line: describe(line),
+        Self::RowTallerThanPage {
+            row: describe(line),
+            height,
+            available,
+        }
+    }
+
+    pub(super) fn bar_row_taller_than_page(row: &BarRow, height: f64, available: f64) -> Self {
+        Self::RowTallerThanPage {
+            row: format!("bar row \"{}\"", preview(&row.to_string())),
             height,
             available,
         }
@@ -70,7 +89,7 @@ fn code_point(character: &char) -> String {
     format!("U+{:04X}", u32::from(*character))
 }
 
-/// Characters of line text shown in an error before it is cut off.
+/// Characters of a row's text shown in an error before it is cut off.
 const PREVIEW_CHARS: usize = 40;
 
 /// Describe a line by its text, since the model carries no source positions.
@@ -80,11 +99,15 @@ fn describe(line: &Line) -> String {
     if text.is_empty() {
         return format!("an empty {:?} line", line.level);
     }
-    let preview: String = text.chars().take(PREVIEW_CHARS).collect();
-    let ellipsis = if text.chars().count() > PREVIEW_CHARS {
-        "…"
+    format!("line \"{}\"", preview(&text))
+}
+
+/// The start of `text`, with an ellipsis if it is cut off.
+fn preview(text: &str) -> String {
+    let start: String = text.chars().take(PREVIEW_CHARS).collect();
+    if text.chars().count() > PREVIEW_CHARS {
+        start + "…"
     } else {
-        ""
-    };
-    format!("line \"{preview}{ellipsis}\"")
+        start
+    }
 }
