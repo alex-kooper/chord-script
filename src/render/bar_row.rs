@@ -34,14 +34,21 @@ const CLEARANCE: f64 = 0.15;
 const CAP_HEIGHT: f64 = 0.714;
 /// How far right a beat slash leans over its height.
 const SLASH_LEAN: f64 = 0.3;
-const SLASH_WIDTH: f64 = 0.12;
-const REPEAT_SIZE: f64 = 1.2;
-/// The middle of the repeat sign above its baseline, as a fraction of its size.
-const REPEAT_SIGN_MIDDLE: f64 = 0.5;
-
-/// The one-bar repeat sign drawn for `%`, a slash between two dots, in the
-/// music font.
-pub(super) const REPEAT_SIGN: char = '\u{1D10E}';
+/// Between the stems of the root and of the smaller quality: a long diagonal
+/// looks heavier than a stem as thick.
+const SLASH_WIDTH: f64 = 0.08;
+/// The repeat sign is a slash as tall as the root between two dots; its
+/// proportions follow Noto Music's one-bar repeat sign. How far right its
+/// slash leans over its height:
+const REPEAT_LEAN: f64 = 0.8;
+/// Heavier than a beat slash: the sign stands for a bar, like a chord, where a
+/// beat slash is only a mark.
+const REPEAT_WIDTH: f64 = 0.11;
+/// How far each dot sits from the sign's middle, and how big it is, as
+/// fractions of the sign's height:
+const REPEAT_DOT_ACROSS: f64 = 0.35;
+const REPEAT_DOT_UP: f64 = 0.225;
+const REPEAT_DOT_RADIUS: f64 = 0.11;
 
 /// A position on the page, in points.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -53,8 +60,10 @@ pub(super) struct Point {
 /// Something drawn in a bar row, positioned on the page.
 #[derive(Debug, Clone, PartialEq)]
 pub(super) enum Mark {
-    /// A straight line: a bar line or a beat slash
+    /// A straight line: a bar line, a beat slash, or the slash of a repeat sign
     Stroke { from: Point, to: Point, width: f64 },
+    /// A filled circle: a dot of a repeat sign
+    Dot { at: Point, radius: f64 },
     /// A chord whose baseline starts at `at`, drawn at `size` and squeezed
     /// horizontally by `squeeze`: 1 when it fits as it is
     Chord {
@@ -63,9 +72,6 @@ pub(super) enum Mark {
         pieces: Vec<Piece>,
         squeeze: f64,
     },
-    /// The bar repeat sign at `size`, centered on `at.x` with its baseline at
-    /// `at.y`
-    Repeat { at: Point, size: f64 },
 }
 
 /// The vertical space a bar row takes: the gap above it, its chords, and the
@@ -108,7 +114,7 @@ pub(super) fn layout(
 /// The marks inside the bar from `start` to `end`.
 fn bar_marks(bar: &Bar, start: f64, end: f64, baseline: f64, size: f64) -> Vec<Mark> {
     let slots = match bar {
-        Bar::Repeat => return vec![repeat_sign(start, end, baseline, size)],
+        Bar::Repeat => return repeat_sign(start, end, baseline, size),
         Bar::Slots(slots) => slots,
     };
     let slot_width = (end - start) / slots.len() as f64;
@@ -154,18 +160,33 @@ fn beat_slash(at: Point, size: f64) -> Mark {
     }
 }
 
-/// The bar repeat sign, centered in the bar from `start` to `end` and on the
-/// height of the root.
-fn repeat_sign(start: f64, end: f64, baseline: f64, size: f64) -> Mark {
-    let sign_size = REPEAT_SIZE * size;
-    let drop = REPEAT_SIGN_MIDDLE * sign_size - CAP_HEIGHT * size / 2.0;
-    Mark::Repeat {
-        at: Point {
-            x: (start + end) / 2.0,
-            y: baseline + drop,
+/// The bar repeat sign, centered in the bar from `start` to `end` and spanning
+/// the height of the root: a slash leaning right, a dot above it on the left,
+/// and one below it on the right.
+fn repeat_sign(start: f64, end: f64, baseline: f64, size: f64) -> Vec<Mark> {
+    let height = CAP_HEIGHT * size;
+    let middle = Point {
+        x: (start + end) / 2.0,
+        y: baseline - height / 2.0,
+    };
+    let from_middle = |across: f64, up: f64| Point {
+        x: middle.x + across * height,
+        y: middle.y - up * height,
+    };
+    let half_lean = REPEAT_LEAN / 2.0;
+    let dot = |at: Point| Mark::Dot {
+        at,
+        radius: REPEAT_DOT_RADIUS * height,
+    };
+    vec![
+        Mark::Stroke {
+            from: from_middle(-half_lean, -0.5),
+            to: from_middle(half_lean, 0.5),
+            width: REPEAT_WIDTH * size,
         },
-        size: sign_size,
-    }
+        dot(from_middle(-REPEAT_DOT_ACROSS, REPEAT_DOT_UP)),
+        dot(from_middle(REPEAT_DOT_ACROSS, -REPEAT_DOT_UP)),
+    ]
 }
 
 #[cfg(test)]

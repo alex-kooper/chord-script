@@ -13,7 +13,8 @@ use symbols::{RunKind, accidental_sign, quality_runs};
 
 /// Sizes and baseline rises as fractions of the chord's font size, set by eye.
 const ROOT_ACCIDENTAL_SIZE: f64 = 0.95;
-const ROOT_ACCIDENTAL_RISE: f64 = 0.36;
+/// High enough to clear digits in the quality, which stand taller than `m`
+const ROOT_ACCIDENTAL_RISE: f64 = 0.42;
 /// Relative to the root accidental: a ♯ reaches lower than a ♭, so it is
 /// raised more to clear the quality.
 const ROOT_SHARP_EXTRA_RISE: f64 = 0.19;

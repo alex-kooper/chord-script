@@ -1,5 +1,7 @@
 //! How the ASCII of a chord symbol is written on paper: `b` and `#` become
-//! ♭ and ♯, `^` becomes Δ, and a leading `o` or `h` becomes ° or ø.
+//! ♭ and ♯, `^` becomes Δ, and a leading `h` becomes ø. A diminished `o`
+//! stays a letter: ø is an `o` with a stroke, so the two signs match, where
+//! the degree sign would sit higher and smaller.
 
 use crate::model::Accidental;
 
@@ -44,13 +46,13 @@ pub(super) fn quality_runs(quality: &str) -> Vec<Run> {
 }
 
 /// How `c` is drawn; `leads` tells whether it starts the quality and no letter
-/// follows it, which makes `o7` diminished but leaves `omit3` as typed.
+/// follows it, which makes `h7` half-diminished but leaves `h` in `m7h` as
+/// typed.
 fn drawn(c: char, leads: bool) -> (char, RunKind) {
     match c {
         'b' => ('♭', RunKind::Accidental),
         '#' => ('♯', RunKind::Accidental),
         '^' => ('Δ', RunKind::Text),
-        'o' if leads => ('°', RunKind::Text),
         'h' if leads => ('ø', RunKind::Text),
         c => (c, RunKind::Text),
     }
@@ -105,10 +107,12 @@ mod tests {
     }
 
     #[test]
-    fn leading_o_and_h_are_diminished_signs_unless_a_word_follows() {
-        assert_eq!(drawn_runs("o7"), [text("°7")]);
-        assert_eq!(drawn_runs("o"), [text("°")]);
+    fn a_leading_h_is_half_diminished_unless_a_word_follows() {
+        assert_eq!(drawn_runs("o7"), [text("o7")]);
+        assert_eq!(drawn_runs("o"), [text("o")]);
         assert_eq!(drawn_runs("h7"), [text("ø7")]);
+        assert_eq!(drawn_runs("h"), [text("ø")]);
+        assert_eq!(drawn_runs("hm"), [text("hm")]);
         assert_eq!(drawn_runs("omit3"), [text("omit3")]);
         assert_eq!(drawn_runs("7sus4"), [text("7sus4")]);
         assert_eq!(drawn_runs("m7h"), [text("m7h")]);

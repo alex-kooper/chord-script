@@ -1,6 +1,5 @@
 use super::*;
 use crate::model::{Chord, ChordQuality, Letter, Note};
-use crate::render::fonts::{self, Font};
 use vec1::Vec1;
 
 const SIZE: f64 = 20.0;
@@ -111,16 +110,23 @@ fn content_starts_an_inset_into_its_slot_and_holds_draw_nothing() {
 }
 
 #[test]
-fn a_bar_repeat_is_centered_in_its_bar() {
+fn a_bar_repeat_is_a_slash_between_two_dots_centered_in_its_bar() {
     let marks = marks(vec![slots(vec![]), Bar::Repeat], 200.0);
-    let repeats: Vec<f64> = marks
-        .iter()
-        .filter_map(|mark| match mark {
-            Mark::Repeat { at, .. } => Some(at.x),
-            _ => None,
-        })
-        .collect();
-    assert_eq!(repeats, [150.0]);
+    let [.., slash, upper, lower] = marks.as_slice() else {
+        panic!("bar lines, then the sign: {marks:?}");
+    };
+    let Mark::Stroke { from, to, width } = slash else {
+        panic!("the sign's slash: {slash:?}");
+    };
+    assert!(close((from.x + to.x) / 2.0, 150.0) && from.x < to.x);
+    assert!(close(from.y, BASELINE) && close(to.y, BASELINE - CAP_HEIGHT * SIZE));
+    assert!(*width > SLASH_WIDTH * SIZE, "heavier than a beat slash");
+
+    let (Mark::Dot { at: upper, .. }, Mark::Dot { at: lower, .. }) = (upper, lower) else {
+        panic!("the sign's dots: {upper:?}, {lower:?}");
+    };
+    assert!(upper.x < 150.0 && lower.x > 150.0 && upper.y < lower.y);
+    assert!(close(upper.x + lower.x, 300.0) && close(upper.y + lower.y, from.y + to.y));
 }
 
 #[test]
@@ -178,9 +184,4 @@ fn the_last_chord_of_a_bar_is_squeezed_to_the_bar_line() {
     };
     let end = at.x + chord::width(pieces) * squeeze;
     assert!(close(end, SIZE - CLEARANCE * SIZE), "{end}");
-}
-
-#[test]
-fn the_music_font_draws_the_bar_repeat_sign() {
-    assert!(fonts::has_glyph(Font::Music, REPEAT_SIGN));
 }

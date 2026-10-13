@@ -75,18 +75,18 @@ fn a_chord_too_wide_for_its_room_is_squeezed_horizontally() {
 }
 
 #[test]
-fn slashes_are_lines_and_repeats_are_the_music_fonts_sign() {
+fn slashes_and_repeat_signs_are_drawn_as_lines_and_dots() {
     let svg = render_row(vec1![
         Bar::Slots(vec![Slot::Slash, Slot::Hold]),
         Bar::Repeat
     ]);
-    assert_eq!(svg.matches("<line").count(), 3 + 1, "bar lines and a slash");
-    assert!(
-        svg.contains(&format!(r#"font-family="{}""#, fonts::MUSIC_FAMILY)),
-        "{svg}"
+    assert_eq!(
+        svg.matches("<line").count(),
+        3 + 1 + 1,
+        "bar lines, a beat slash and the repeat sign's slash: {svg}"
     );
-    assert!(svg.contains('\u{1D10E}'), "{svg}");
-    assert!(svg.contains(r#"text-anchor="middle""#), "{svg}");
+    assert_eq!(svg.matches("<circle").count(), 2, "{svg}");
+    assert!(!svg.contains("<text"), "nothing is drawn in a font: {svg}");
 }
 
 #[test]

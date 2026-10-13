@@ -188,7 +188,7 @@ fn chord_accidentals_are_drawn_from_the_bundled_music_font() {
 }
 
 #[test]
-fn bar_rows_draw_their_repeat_sign_from_the_bundled_music_font() {
+fn bar_rows_draw_chords_in_the_chord_face_and_repeat_signs_without_a_font() {
     let row = BarRow::new(vec1![
         Bar::Slots(vec![Slot::Chord(Chord::new(
             Note::natural(Letter::C),
@@ -199,9 +199,10 @@ fn bar_rows_draw_their_repeat_sign_from_the_bundled_music_font() {
     ]);
     let pdf = render_default(vec![row.into()]);
     assert_eq!(page_count(&pdf), 1);
+    assert!(pdf.contains("+NotoSans-SemiCondensedMedium"));
     assert!(
-        pdf.contains("+NotoMusic-Regular"),
-        "no ♭ or ♯ here, only `%`"
+        !pdf.contains("+NotoMusic-Regular"),
+        "no ♭ or ♯ here, and `%` is drawn"
     );
 }
 
