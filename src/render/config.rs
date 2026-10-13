@@ -48,8 +48,8 @@ pub struct BarRowStyle {
 impl Default for BarRowStyle {
     fn default() -> Self {
         Self {
-            chord_size: 20.0,
-            gap: 6.0,
+            chord_size: 32.0,
+            gap: 10.0,
         }
     }
 }
@@ -93,10 +93,10 @@ impl Default for RenderConfig {
             // The generic fallback keeps SVG viewers without Noto Sans on a
             // sans-serif font; they would otherwise default to a serif one.
             font_family: format!("{}, sans-serif", super::fonts::FAMILY),
-            header1: regular(18.0, 24.0),
-            header2: regular(14.0, 20.0),
-            header3: regular(11.0, 16.0),
-            text: regular(10.0, 14.0),
+            header1: regular(29.0, 38.0),
+            header2: regular(22.0, 32.0),
+            header3: regular(18.0, 26.0),
+            text: regular(16.0, 22.0),
             bar_row: BarRowStyle::default(),
         }
     }

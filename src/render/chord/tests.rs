@@ -1,5 +1,5 @@
 use super::*;
-use crate::model::{ChordQuality, Letter};
+use crate::model::{ChordQuality, Letter, TextStyle};
 
 const SIZE: f64 = 10.0;
 const PLACEMENTS: [BassPlacement; 2] = [BassPlacement::Below, BassPlacement::After];
@@ -10,7 +10,7 @@ fn chord(root: Note, quality: Option<&str>, bass: Option<Note>) -> Chord {
 }
 
 fn plain(chord: &Chord, placement: BassPlacement) -> Vec<Piece> {
-    layout(chord, TextStyle::Normal, SIZE, placement)
+    layout(chord, Font::Text(TextStyle::Normal), SIZE, placement)
 }
 
 /// Each piece's start and end, measured from the chord's start.
@@ -161,17 +161,18 @@ fn every_piece_is_drawable_in_its_font() {
             Note::sharp(letter),
         ]
     });
-    let styles = [
-        TextStyle::Normal,
-        TextStyle::Bold,
-        TextStyle::Italic,
-        TextStyle::BoldItalic,
+    let fonts = [
+        Font::Text(TextStyle::Normal),
+        Font::Text(TextStyle::Bold),
+        Font::Text(TextStyle::Italic),
+        Font::Text(TextStyle::BoldItalic),
+        Font::Chord,
     ];
     for note in notes {
         for quality in qualities {
-            for style in styles {
+            for letters in fonts {
                 let symbol = chord(note, Some(quality), Some(note));
-                for piece in layout(&symbol, style, SIZE, BassPlacement::Below) {
+                for piece in layout(&symbol, letters, SIZE, BassPlacement::Below) {
                     for c in piece.text.chars() {
                         assert!(fonts::has_glyph(piece.font, c), "{c} in {:?}", piece.font);
                     }
@@ -182,17 +183,19 @@ fn every_piece_is_drawable_in_its_font() {
 }
 
 #[test]
-fn letters_take_the_style_but_signs_stay_in_the_music_font() {
+fn letters_take_the_given_font_but_signs_stay_in_the_music_font() {
     let symbol = chord(
         Note::sharp(Letter::F),
         Some("m7"),
         Some(Note::flat(Letter::E)),
     );
-    for piece in layout(&symbol, TextStyle::BoldItalic, SIZE, BassPlacement::After) {
-        let expected = match piece.text.as_str() {
-            "♯" | "♭" => Font::Music,
-            _ => Font::Text(TextStyle::BoldItalic),
-        };
-        assert_eq!(piece.font, expected, "{}", piece.text);
+    for letters in [Font::Text(TextStyle::BoldItalic), Font::Chord] {
+        for piece in layout(&symbol, letters, SIZE, BassPlacement::After) {
+            let expected = match piece.text.as_str() {
+                "♯" | "♭" => Font::Music,
+                _ => letters,
+            };
+            assert_eq!(piece.font, expected, "{}", piece.text);
+        }
     }
 }

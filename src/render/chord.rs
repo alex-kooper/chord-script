@@ -8,7 +8,7 @@
 mod symbols;
 
 use super::fonts::{self, Font};
-use crate::model::{Accidental, Chord, Note, TextStyle};
+use crate::model::{Accidental, Chord, Note};
 use symbols::{RunKind, accidental_sign, quality_runs};
 
 /// Sizes and baseline rises as fractions of the chord's font size, set by eye.
@@ -84,18 +84,18 @@ pub(super) enum BassPlacement {
     After,
 }
 
-/// The pieces of `chord` at `size` in `style`, in drawing order.
+/// The pieces of `chord` at `size`, its letters in `letters`, in drawing order.
 ///
 /// Each piece moves on from where the previous one ended, so the pieces are
 /// ordered by their right edges: once all are drawn, the pen stands at the
 /// chord's right edge and following text continues from there.
 pub(super) fn layout(
     chord: &Chord,
-    style: TextStyle,
+    letters: Font,
     size: f64,
     placement: BassPlacement,
 ) -> Vec<Piece> {
-    let root = Piece::new(chord.root.letter.to_string(), Font::Text(style), size, 0.0);
+    let root = Piece::new(chord.root.letter.to_string(), letters, size, 0.0);
     let root_width = root.width();
 
     let mut stacks = Vec::new();
@@ -109,18 +109,23 @@ pub(super) fn layout(
     if let Some(quality) = &chord.quality {
         stacks.push(Stack {
             x: root_width,
-            pieces: quality_pieces(quality.as_ref(), style, size),
+            pieces: quality_pieces(quality.as_ref(), letters, size),
         });
     }
     if let Some(bass) = chord.bass {
         let stack = match placement {
             BassPlacement::Below => Stack {
                 x: root_width * BASS_BELOW_INDENT,
-                pieces: bass_pieces(bass, style, size * BASS_BELOW_SIZE, size * BASS_BELOW_RISE),
+                pieces: bass_pieces(
+                    bass,
+                    letters,
+                    size * BASS_BELOW_SIZE,
+                    size * BASS_BELOW_RISE,
+                ),
             },
             BassPlacement::After => Stack {
                 x: stacks.iter().map(Stack::right).fold(root_width, f64::max),
-                pieces: bass_pieces(bass, style, size * BASS_AFTER_SIZE, 0.0),
+                pieces: bass_pieces(bass, letters, size * BASS_AFTER_SIZE, 0.0),
             },
         };
         stacks.push(stack);
@@ -150,13 +155,13 @@ fn accidental_piece(accidental: Accidental, size: f64, rise: f64) -> Piece {
     Piece::new(accidental_sign(accidental), Font::Music, size, rise)
 }
 
-fn quality_pieces(quality: &str, style: TextStyle, chord_size: f64) -> Vec<Piece> {
+fn quality_pieces(quality: &str, letters: Font, chord_size: f64) -> Vec<Piece> {
     let size = chord_size * QUALITY_SIZE;
     let rise = chord_size * QUALITY_RISE;
     quality_runs(quality)
         .into_iter()
         .map(|run| match run.kind {
-            RunKind::Text => Piece::new(run.text, Font::Text(style), size, rise),
+            RunKind::Text => Piece::new(run.text, letters, size, rise),
             RunKind::Accidental => Piece::new(
                 run.text,
                 Font::Music,
@@ -167,8 +172,8 @@ fn quality_pieces(quality: &str, style: TextStyle, chord_size: f64) -> Vec<Piece
         .collect()
 }
 
-fn bass_pieces(bass: Note, style: TextStyle, size: f64, rise: f64) -> Vec<Piece> {
-    let note = Piece::new(format!("/{}", bass.letter), Font::Text(style), size, rise);
+fn bass_pieces(bass: Note, letters: Font, size: f64, rise: f64) -> Vec<Piece> {
+    let note = Piece::new(format!("/{}", bass.letter), letters, size, rise);
     let accidental = bass
         .accidental
         .map(|accidental| accidental_piece(accidental, size * BASS_ACCIDENTAL_SIZE, rise));

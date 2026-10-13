@@ -259,8 +259,8 @@ fn bar_row_taller_than_a_page_is_an_error_naming_the_row() {
 
 #[test]
 fn overflow_renders_onto_following_pages() {
-    // Defaults: 842pt page, 28pt margins, 14pt text lines -> 56 lines per page.
-    let lines = (0..60)
+    // Defaults: 842pt page, 28pt margins, 22pt text lines -> 35 lines per page.
+    let lines = (0..40)
         .map(|n| left_line(LineLevel::Text, vec![Inline::plain(format!("line {n}"))]))
         .collect();
     let pages = SvgGenerator::with_defaults()
@@ -269,6 +269,6 @@ fn overflow_renders_onto_following_pages() {
 
     assert_eq!(pages.len(), 2);
     let second: &str = pages[1].as_ref();
-    assert!(second.contains(">line 56<"), "{second}");
-    assert!(second.contains("y=\"42\""), "restarts at the top margin");
+    assert!(second.contains(">line 35<"), "{second}");
+    assert!(second.contains("y=\"50\""), "restarts at the top margin");
 }

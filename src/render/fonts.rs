@@ -1,9 +1,11 @@
 //! Fonts bundled into the binary, so output looks the same on every machine.
 //!
-//! Noto Sans covers Latin, Cyrillic (including Ukrainian), and Greek. It ships
-//! as four static faces, so weights snap to regular (400) or bold (700).
-//! Noto Music draws the ♭ and ♯ of chord symbols, which Noto Sans lacks; it
-//! has a regular face only.
+//! Noto Sans covers Latin, Cyrillic (including Ukrainian), and Greek. Text
+//! ships as four static faces, so its weights snap to regular (400) or bold
+//! (700). A fifth face, semi-condensed medium, draws the letters of bar-row
+//! chords: a little heavier than the text, and narrower, so busy bars squeeze
+//! less. Noto Music draws the ♭ and ♯ of chord symbols, which Noto Sans lacks;
+//! it has a regular face only.
 
 use crate::model::TextStyle;
 use std::sync::{Arc, OnceLock};
@@ -16,17 +18,23 @@ pub(super) const FAMILY: &str = "Noto Sans";
 /// The family name of the bundled font for ♭ and ♯ in chord symbols.
 pub(super) const MUSIC_FAMILY: &str = "Noto Music";
 
+/// The CSS weight and stretch that pick the chord face out of [`FAMILY`].
+pub(super) const CHORD_WEIGHT: u16 = 500;
+pub(super) const CHORD_STRETCH: &str = "semi-condensed";
+
 /// The bundled faces: the text faces in [`text_face_index`] order, then the
-/// music face.
-const FACES: [&[u8]; 5] = [
+/// music face, then the chord face.
+const FACES: [&[u8]; 6] = [
     include_bytes!("../../assets/fonts/NotoSans-Regular.ttf"),
     include_bytes!("../../assets/fonts/NotoSans-Bold.ttf"),
     include_bytes!("../../assets/fonts/NotoSans-Italic.ttf"),
     include_bytes!("../../assets/fonts/NotoSans-BoldItalic.ttf"),
     include_bytes!("../../assets/fonts/NotoMusic-Regular.ttf"),
+    include_bytes!("../../assets/fonts/NotoSans-SemiCondensedMedium.ttf"),
 ];
 
 const MUSIC_FACE_INDEX: usize = 4;
+const CHORD_FACE_INDEX: usize = 5;
 
 /// A bundled face to measure text in.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -35,6 +43,8 @@ pub(super) enum Font {
     Text(TextStyle),
     /// Noto Music
     Music,
+    /// Noto Sans SemiCondensed Medium
+    Chord,
 }
 
 /// A font database holding only the bundled faces, never system fonts.
@@ -113,6 +123,7 @@ fn face_index(font: Font) -> usize {
     match font {
         Font::Text(style) => text_face_index(style),
         Font::Music => MUSIC_FACE_INDEX,
+        Font::Chord => CHORD_FACE_INDEX,
     }
 }
 
@@ -142,7 +153,7 @@ fn faces() -> &'static [Face<'static>] {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use usvg::fontdb::{ID, Style, Weight};
+    use usvg::fontdb::{ID, Stretch, Style, Weight};
 
     fn find(family: Family, weight: Weight, style: Style) -> Option<ID> {
         database().query(&Query {
@@ -213,6 +224,20 @@ mod tests {
         }
         let id = find(Family::Name(MUSIC_FAMILY), Weight::NORMAL, Style::Normal);
         assert_eq!(post_script_name(id.expect("resolves")), "NotoMusic-Regular");
+    }
+
+    #[test]
+    fn chord_face_is_found_by_its_weight_and_stretch() {
+        let id = database().query(&Query {
+            families: &[Family::Name(FAMILY)],
+            weight: Weight(CHORD_WEIGHT),
+            stretch: Stretch::SemiCondensed,
+            style: Style::Normal,
+        });
+        assert_eq!(
+            post_script_name(id.expect("resolves")),
+            "NotoSans-SemiCondensedMedium"
+        );
     }
 
     #[test]

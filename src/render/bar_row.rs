@@ -13,7 +13,8 @@
 
 use super::BarRowStyle;
 use super::chord::{self, BassPlacement, Piece};
-use crate::model::{Bar, BarRow, Slot, TextStyle};
+use super::fonts::Font;
+use crate::model::{Bar, BarRow, Slot};
 
 /// Fractions of the chord size, set by eye after iReal Pro.
 ///
@@ -124,7 +125,7 @@ fn bar_marks(bar: &Bar, start: f64, end: f64, baseline: f64, size: f64) -> Vec<M
         let at = Point { x, y: baseline };
         marks.push(match slot {
             Slot::Chord(symbol) => {
-                let pieces = chord::layout(symbol, TextStyle::Normal, size, BassPlacement::Below);
+                let pieces = chord::layout(symbol, Font::Chord, size, BassPlacement::Below);
                 let room = next - x - CLEARANCE * size;
                 let squeeze = (room.max(0.0) / chord::width(&pieces)).min(1.0);
                 Mark::Chord {

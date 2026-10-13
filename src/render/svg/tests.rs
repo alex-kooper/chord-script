@@ -95,7 +95,7 @@ fn test_header_styling() {
 
     assert!(svg.contains("font-family=\"Noto Sans, sans-serif\""));
     assert!(svg.contains("font-weight=\"normal\""));
-    assert!(svg.contains("font-size=\"18\""));
+    assert!(svg.contains("font-size=\"29\""));
 }
 
 #[test]
@@ -150,9 +150,9 @@ fn stacked_lines_get_distinct_increasing_y() {
     ]);
     let svg = render_default(&chart);
 
-    // Defaults: margin_vertical = 28, Text line_height = 14 -> baselines 42 and 56.
-    assert!(svg.contains("y=\"42\""));
-    assert!(svg.contains("y=\"56\""));
+    // Defaults: margin_vertical = 28, Text line_height = 22 -> baselines 50 and 72.
+    assert!(svg.contains("y=\"50\""));
+    assert!(svg.contains("y=\"72\""));
 }
 
 #[test]
@@ -163,8 +163,8 @@ fn empty_line_takes_its_level_height() {
     ]);
     let svg = render_default(&chart);
 
-    // Defaults: margin 28 + empty H2 (20) + Text (14) -> baseline 62.
-    assert!(svg.contains("y=\"62\""));
+    // Defaults: margin 28 + empty H2 (32) + Text (22) -> baseline 82.
+    assert!(svg.contains("y=\"82\""));
     assert_eq!(svg.matches("<text").count(), 1, "empty line draws nothing");
 }
 

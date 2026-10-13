@@ -70,8 +70,12 @@ fn render_column(
             }
             Content::Chord(symbol) => {
                 let measured_style = inline.style.combine(level_style);
-                let pieces =
-                    chord::layout(symbol, measured_style, style.size, BassPlacement::After);
+                let pieces = chord::layout(
+                    symbol,
+                    Font::Text(measured_style),
+                    style.size,
+                    BassPlacement::After,
+                );
                 overlap += chord::overlap(&pieces);
                 for piece in &pieces {
                     tspans += &render_piece(piece, inline.style, style.size).to_string();
@@ -120,8 +124,15 @@ fn is_bold_weight(weight: &str) -> bool {
 /// One piece of a chord as a tspan of a text element drawn at `column_size`.
 pub(super) fn render_piece(piece: &Piece, style: TextStyle, column_size: f64) -> TSpan {
     let mut tspan = styled(TSpan::new(piece.text.as_str()), style);
-    if piece.font == Font::Music {
-        tspan = tspan.set("font-family", fonts::MUSIC_FAMILY);
+    match piece.font {
+        Font::Text(_) => {}
+        Font::Music => tspan = tspan.set("font-family", fonts::MUSIC_FAMILY),
+        Font::Chord => {
+            tspan = tspan
+                .set("font-family", fonts::FAMILY)
+                .set("font-weight", fonts::CHORD_WEIGHT)
+                .set("font-stretch", fonts::CHORD_STRETCH)
+        }
     }
     if piece.size != column_size {
         tspan = tspan.set("font-size", rounded(piece.size));
