@@ -51,7 +51,7 @@ fn a_row_is_drawn_as_bar_lines_and_chords() {
     for x in ["28", "297.5", "567"] {
         assert!(svg.contains(&format!(r#"x1="{x}" x2="{x}""#)), "{x}: {svg}");
     }
-    assert!(svg.contains(r#"font-size="32""#), "{svg}");
+    assert!(svg.contains(r#"font-size="38""#), "{svg}");
     assert!(svg.contains(">A</tspan>") && svg.contains(">m7</tspan>"));
     assert!(svg.contains(">D</tspan>"));
     assert!(!svg.contains("transform"), "both chords fit: {svg}");

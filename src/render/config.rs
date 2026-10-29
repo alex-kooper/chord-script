@@ -48,7 +48,7 @@ pub struct BarRowStyle {
 impl Default for BarRowStyle {
     fn default() -> Self {
         Self {
-            chord_size: 32.0,
+            chord_size: 38.0,
             gap: 10.0,
         }
     }
