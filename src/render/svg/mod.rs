@@ -5,7 +5,7 @@
 //! that wires them together: it paginates the chart, then builds one SVG
 //! document per page.
 
-use super::{RenderConfig, Result};
+use super::{BarRowStyle, RenderConfig, Result};
 use crate::model::Chart;
 use derive_more::{AsRef, Display, Into};
 use svg::{Document, Node};
@@ -44,9 +44,12 @@ impl SvgGenerator {
     ///
     /// There is always at least one page; an empty chart renders as one blank
     /// page. Fails if a row is too tall to fit on any page, or if the bar-row
-    /// style has a non-positive chord size or a negative gap.
+    /// style's chord size isn't a positive number or its gap a non-negative
+    /// one.
     pub fn render(&self, chart: &Chart) -> Result<Vec<SvgPage>> {
-        if self.config.bar_row.chord_size <= 0.0 || self.config.bar_row.gap < 0.0 {
+        let BarRowStyle { chord_size, gap } = self.config.bar_row;
+        let valid = chord_size.is_finite() && chord_size > 0.0 && gap.is_finite() && gap >= 0.0;
+        if !valid {
             return Err(super::RenderError::invalid_bar_row_style(
                 &self.config.bar_row,
             ));

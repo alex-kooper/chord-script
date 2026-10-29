@@ -60,7 +60,9 @@ pub(super) struct Point {
 /// Something drawn in a bar row, positioned on the page.
 #[derive(Debug, Clone, PartialEq)]
 pub(super) enum Mark {
-    /// A straight line: a bar line, a beat slash, or the slash of a repeat sign
+    /// A straight line: a bar line, a beat slash, or the slash of a repeat
+    /// sign. Its ends are cut level, like a glyph standing on the baseline,
+    /// and `width` is its thickness across.
     Stroke { from: Point, to: Point, width: f64 },
     /// A filled circle: a dot of a repeat sign
     Dot { at: Point, radius: f64 },

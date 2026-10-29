@@ -8,7 +8,7 @@ use crate::render::bar_row::{self, Mark, Point};
 use crate::render::chord::{Offset, Piece, Slash};
 use svg::Node;
 use svg::node::Blob;
-use svg::node::element::{Circle, Group, Line as SvgLine, Text as SvgText};
+use svg::node::element::{Circle, Group, Polygon, Text as SvgText};
 
 /// The vertical space a bar row occupies.
 pub(super) fn height_of(config: &RenderConfig) -> f64 {
@@ -40,14 +40,29 @@ fn render_mark(mark: &Mark, font_family: &str) -> Box<dyn Node> {
     }
 }
 
-fn stroke(from: Point, to: Point, width: f64) -> SvgLine {
-    SvgLine::new()
-        .set("x1", rounded(from.x))
-        .set("y1", rounded(from.y))
-        .set("x2", rounded(to.x))
-        .set("y2", rounded(to.y))
-        .set("stroke", "black")
-        .set("stroke-width", rounded(width))
+/// A stroke `width` thick across from `from` to `to`, its ends cut level: a
+/// parallelogram, or a rectangle when upright. Its ends are wider than
+/// `width` the more it leans.
+fn stroke(from: Point, to: Point, width: f64) -> Polygon {
+    let (across, up) = (to.x - from.x, to.y - from.y);
+    // A chord size too small to tell its ends apart on the page leaves a
+    // stroke with no height, which has no lean to widen its ends for.
+    let half_end = if up == 0.0 {
+        width / 2.0
+    } else {
+        width / 2.0 * across.hypot(up) / up.abs()
+    };
+    let corners = [
+        (from.x - half_end, from.y),
+        (from.x + half_end, from.y),
+        (to.x + half_end, to.y),
+        (to.x - half_end, to.y),
+    ];
+    let points: Vec<String> = corners
+        .iter()
+        .map(|&(x, y)| format!("{},{}", rounded(x), rounded(y)))
+        .collect();
+    Polygon::new().set("points", points.join(" "))
 }
 
 fn dot(at: Point, radius: f64) -> Circle {
@@ -57,7 +72,7 @@ fn dot(at: Point, radius: f64) -> Circle {
         .set("r", rounded(radius))
 }
 
-/// A chord as one text element, with the slash of a hanging bass as a line
+/// A chord as one text element, with the slash of a hanging bass as a stroke
 /// beside it. A squeezed chord is drawn at the origin of a group that moves it
 /// into place and narrows it, slash included.
 fn chord(
@@ -98,11 +113,53 @@ fn chord(
     Box::new(group)
 }
 
-/// `slash` as a line, for a chord whose baseline starts at `origin`.
-fn slash_line(slash: &Slash, origin: Point) -> SvgLine {
+/// `slash` as a stroke, for a chord whose baseline starts at `origin`.
+fn slash_line(slash: &Slash, origin: Point) -> Polygon {
     let point = |offset: Offset| Point {
         x: origin.x + offset.x,
         y: origin.y - offset.rise,
     };
     stroke(point(slash.from), point(slash.to), slash.width)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::render::svg::tests::polygons;
+
+    fn corners(polygon: Polygon) -> Vec<(f64, f64)> {
+        let mut drawn = polygons(&polygon.to_string());
+        assert_eq!(drawn.len(), 1, "one polygon");
+        drawn.remove(0)
+    }
+
+    #[test]
+    fn a_leaning_stroke_has_level_ends_and_keeps_its_thickness_across() {
+        // Across 12 and up 16 make it 20 long, so its ends are 20/16 as wide.
+        let from = Point { x: 10.0, y: 50.0 };
+        let to = Point { x: 22.0, y: 34.0 };
+        assert_eq!(
+            corners(stroke(from, to, 2.0)),
+            [(8.75, 50.0), (11.25, 50.0), (23.25, 34.0), (20.75, 34.0)]
+        );
+    }
+
+    #[test]
+    fn a_stroke_with_no_height_has_ends_as_wide_as_it_is_thick() {
+        let at = Point { x: 5.0, y: 70.0 };
+        assert_eq!(
+            corners(stroke(at, at, 2.0)),
+            [(4.0, 70.0), (6.0, 70.0), (6.0, 70.0), (4.0, 70.0)]
+        );
+    }
+
+    #[test]
+    fn an_upright_stroke_is_a_rectangle() {
+        let from = Point { x: 5.0, y: 0.0 };
+        let to = Point { x: 5.0, y: 10.0 };
+        assert_eq!(
+            corners(stroke(from, to, 2.0)),
+            [(4.0, 0.0), (6.0, 0.0), (6.0, 10.0), (4.0, 10.0)]
+        );
+    }
 }

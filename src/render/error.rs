@@ -28,7 +28,7 @@ pub enum RenderError {
     /// A bar row cannot be drawn: its chord size is not positive, or its gap
     /// is negative.
     #[error(
-        "invalid bar row style: chord size {chord_size}pt must be positive and gap {gap}pt must not be negative"
+        "invalid bar row style: chord size {chord_size}pt must be a positive number and gap {gap}pt a non-negative one"
     )]
     InvalidBarRowStyle { chord_size: f64, gap: f64 },
 

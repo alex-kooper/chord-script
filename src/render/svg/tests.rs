@@ -31,6 +31,29 @@ fn render_default(chart: &Chart) -> String {
     render_one(&SvgGenerator::with_defaults(), chart)
 }
 
+/// The corners of every polygon in `svg`, whatever other attributes it has.
+/// A stroke drawn upwards lists bottom left, bottom right, top right, top left.
+pub(super) fn polygons(svg: &str) -> Vec<Vec<(f64, f64)>> {
+    svg.split("<polygon")
+        .skip(1)
+        .map(|element| {
+            let tag = element.split('>').next().expect("a closed tag");
+            let points = tag
+                .split(" points=\"")
+                .nth(1)
+                .and_then(|rest| rest.split('"').next())
+                .expect("a polygon has points");
+            points
+                .split(' ')
+                .map(|corner| {
+                    let (x, y) = corner.split_once(',').expect("x,y");
+                    (x.parse().expect("x"), y.parse().expect("y"))
+                })
+                .collect()
+        })
+        .collect()
+}
+
 #[test]
 fn test_render_empty_chart_is_one_blank_page() {
     let svg = render_default(&Chart::new(vec![]));
