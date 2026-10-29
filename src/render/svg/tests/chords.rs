@@ -33,13 +33,15 @@ fn chord_is_drawn_in_pieces_in_its_style() {
     let flat = tspan_of("♭");
     assert!(flat.contains(r#"font-family="Noto Music""#), "{flat}");
     assert!(flat.contains("baseline-shift="), "{flat}");
-    for text in ["m7", "/F"] {
+    for text in ["m7", "/", "F"] {
         let tspan = tspan_of(text);
         assert!(tspan.contains(r#"font-weight="bold""#), "{tspan}");
         assert!(tspan.contains("font-size="), "{tspan}");
     }
     assert!(tspan_of("m7").contains("baseline-shift=\"-"));
-    assert!(!tspan_of("/F").contains("baseline-shift"));
+    for text in ["/", "F"] {
+        assert!(!tspan_of(text).contains("baseline-shift"), "{text}");
+    }
 }
 
 /// The `dx` moves of a text line holding `[Bbi]` in `style`, drawn with the

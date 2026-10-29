@@ -75,7 +75,8 @@ fn render_column(
                     Font::Text(measured_style),
                     style.size,
                     BassPlacement::After,
-                );
+                )
+                .pieces;
                 overlap += chord::overlap(&pieces);
                 for piece in &pieces {
                     tspans += &render_piece(piece, inline.style, style.size).to_string();

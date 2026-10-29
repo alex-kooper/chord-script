@@ -10,6 +10,10 @@ fn chord(root: Note, quality: Option<&str>, bass: Option<Note>) -> Chord {
 }
 
 fn plain(chord: &Chord, placement: BassPlacement) -> Vec<Piece> {
+    plain_layout(chord, placement).pieces
+}
+
+fn plain_layout(chord: &Chord, placement: BassPlacement) -> ChordLayout {
     layout(chord, Font::Text(TextStyle::Normal), SIZE, placement)
 }
 
@@ -65,7 +69,7 @@ fn the_root_accidental_is_raised_and_the_quality_lowered() {
 
     let mut drawn: Vec<&str> = pieces.iter().map(|piece| piece.text.as_str()).collect();
     drawn.sort_unstable();
-    assert_eq!(drawn, ["/A", "5", "B", "m7", "♭", "♭", "♭"]);
+    assert_eq!(drawn, ["5", "A", "B", "m7", "♭", "♭", "♭"]);
 
     let root_accidental = pieces
         .iter()
@@ -111,22 +115,49 @@ fn the_pen_ends_at_the_chord_right_edge() {
 
 #[test]
 fn a_bass_below_hangs_under_the_root_and_the_quality() {
-    let pieces = plain(&c7_over_e(), BassPlacement::Below);
+    let ChordLayout { pieces, slash } = plain_layout(&c7_over_e(), BassPlacement::Below);
     let (_, (_, root_end)) = find(&pieces, "C");
     let (quality, (quality_start, _)) = find(&pieces, "7");
-    let (bass, (bass_start, _)) = find(&pieces, "/E");
+    let (note, (note_start, _)) = find(&pieces, "E");
     assert_eq!(quality_start, root_end);
-    assert!(bass_start > 0.0 && bass_start < root_end);
-    assert!(bass.rise < quality.rise);
+    assert!(note.rise < quality.rise);
+    assert!(
+        pieces.iter().all(|piece| piece.text != "/"),
+        "drawn as a line"
+    );
+
+    let slash = slash.expect("a hanging bass has a slash");
+    assert!(
+        slash.from.x > 0.0 && slash.from.x < root_end,
+        "under the root"
+    );
+    let note_top = note.rise + note.size * 0.714;
+    assert!(
+        note_start < slash.to.x && note_top < slash.to.rise,
+        "the note tucks under the slash's upper end"
+    );
+    assert!(note.rise < slash.from.rise && slash.to.rise < quality.rise);
+    let angle = (slash.to.rise - slash.from.rise).atan2(slash.to.x - slash.from.x);
+    assert!(angle.to_degrees() < 60.0, "flatter than the font's `/`");
+}
+
+#[test]
+fn only_a_hanging_bass_has_a_drawn_slash() {
+    let c7 = chord(Note::natural(Letter::C), Some("7"), None);
+    for placement in PLACEMENTS {
+        assert_eq!(plain_layout(&c7, placement).slash, None);
+    }
+    assert_eq!(plain_layout(&c7_over_e(), BassPlacement::After).slash, None);
 }
 
 #[test]
 fn a_bass_after_follows_the_quality_on_the_root_baseline() {
     let pieces = plain(&c7_over_e(), BassPlacement::After);
     let (quality, (_, quality_end)) = find(&pieces, "7");
-    let (bass, (bass_start, _)) = find(&pieces, "/E");
+    let (slash, (bass_start, _)) = find(&pieces, "/");
+    let (bass, _) = find(&pieces, "E");
     assert!((bass_start - quality_end).abs() < 1e-9);
-    assert_eq!(bass.rise, 0.0);
+    assert_eq!((slash.rise, bass.rise), (0.0, 0.0));
     assert!(quality.size < bass.size && bass.size < SIZE);
     assert_eq!(overlap(&pieces), 0.0);
 }
@@ -136,7 +167,7 @@ fn a_bass_after_clears_a_root_accidental_wider_than_the_quality() {
     let b_flat_over_a = chord(Note::flat(Letter::B), None, Some(Note::natural(Letter::A)));
     let pieces = plain(&b_flat_over_a, BassPlacement::After);
     let (_, (_, accidental_end)) = find(&pieces, "♭");
-    let (_, (bass_start, _)) = find(&pieces, "/A");
+    let (_, (bass_start, _)) = find(&pieces, "/");
     assert!((bass_start - accidental_end).abs() < 1e-9);
 }
 
@@ -172,7 +203,7 @@ fn every_piece_is_drawable_in_its_font() {
         for quality in qualities {
             for letters in fonts {
                 let symbol = chord(note, Some(quality), Some(note));
-                for piece in layout(&symbol, letters, SIZE, BassPlacement::Below) {
+                for piece in layout(&symbol, letters, SIZE, BassPlacement::Below).pieces {
                     for c in piece.text.chars() {
                         assert!(fonts::has_glyph(piece.font, c), "{c} in {:?}", piece.font);
                     }
@@ -190,7 +221,7 @@ fn letters_take_the_given_font_but_signs_stay_in_the_music_font() {
         Some(Note::flat(Letter::E)),
     );
     for letters in [Font::Text(TextStyle::BoldItalic), Font::Chord] {
-        for piece in layout(&symbol, letters, SIZE, BassPlacement::After) {
+        for piece in layout(&symbol, letters, SIZE, BassPlacement::After).pieces {
             let expected = match piece.text.as_str() {
                 "♯" | "♭" => Font::Music,
                 _ => letters,

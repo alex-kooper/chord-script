@@ -28,17 +28,42 @@ fn chord_ink(chord: Chord) -> (f64, f64) {
         ..usvg::Options::default()
     };
     let tree = usvg::Tree::from_str(&svg, &options).expect("generated SVG parses");
-    let mut top = f32::MAX;
-    let mut bottom = f32::MIN;
-    for child in tree.root().children() {
-        if let usvg::Node::Text(text) = child {
-            let bounds = text.flattened().abs_bounding_box();
-            top = top.min(bounds.top());
-            bottom = bottom.max(bounds.bottom());
-        }
-    }
+    let (mut top, mut bottom) = (f32::MAX, f32::MIN);
+    text_ink(tree.root(), &mut top, &mut bottom);
     assert!(top < bottom, "the chord should leave some ink");
     (f64::from(top), f64::from(bottom))
+}
+
+/// Widens `top..bottom` to the glyph ink of every text under `group`.
+fn text_ink(group: &usvg::Group, top: &mut f32, bottom: &mut f32) {
+    for child in group.children() {
+        match child {
+            usvg::Node::Text(text) => {
+                let bounds = text.flattened().abs_bounding_box();
+                *top = top.min(bounds.top());
+                *bottom = bottom.max(bounds.bottom());
+            }
+            usvg::Node::Group(group) => text_ink(group, top, bottom),
+            _ => {}
+        }
+    }
+}
+
+#[test]
+fn a_hanging_bass_slash_is_a_line_drawn_with_its_chord() {
+    let c7_over_e = Chord::new(
+        Note::natural(Letter::C),
+        quality("7"),
+        Some(Note::natural(Letter::E)),
+    );
+    let svg = render_row(vec1![Bar::Slots(vec![Slot::Chord(c7_over_e)])]);
+    assert_eq!(
+        svg.matches("<line").count(),
+        2 + 1,
+        "bar lines and the slash"
+    );
+    assert!(svg.contains("<g>"), "{svg}");
+    assert!(!svg.contains(">/</tspan>"), "{svg}");
 }
 
 #[test]

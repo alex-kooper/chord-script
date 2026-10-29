@@ -28,6 +28,9 @@ target
 # macOS Finder metadata
 .DS_Store
 
+# Scratch charts and renders for checking layout by eye
+/.preview/
+
 # Rendered example output; regenerate with `chords examples/*.chords`
 examples/*.svg
 examples/*.pdf

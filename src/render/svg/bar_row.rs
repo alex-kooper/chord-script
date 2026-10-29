@@ -5,7 +5,7 @@ use super::line::{render_piece, rounded};
 use crate::model::{BarRow, TextStyle};
 use crate::render::RenderConfig;
 use crate::render::bar_row::{self, Mark, Point};
-use crate::render::chord::Piece;
+use crate::render::chord::{Offset, Piece, Slash};
 use svg::Node;
 use svg::node::Blob;
 use svg::node::element::{Circle, Group, Line as SvgLine, Text as SvgText};
@@ -34,8 +34,9 @@ fn render_mark(mark: &Mark, font_family: &str) -> Box<dyn Node> {
             at,
             size,
             pieces,
+            slash,
             squeeze,
-        } => chord(*at, *size, pieces, *squeeze, font_family),
+        } => chord(*at, *size, pieces, slash.as_ref(), *squeeze, font_family),
     }
 }
 
@@ -56,9 +57,17 @@ fn dot(at: Point, radius: f64) -> Circle {
         .set("r", rounded(radius))
 }
 
-/// A chord as one text element; a squeezed one is drawn at the origin of a
-/// group that moves it into place and narrows it.
-fn chord(at: Point, size: f64, pieces: &[Piece], squeeze: f64, font_family: &str) -> Box<dyn Node> {
+/// A chord as one text element, with the slash of a hanging bass as a line
+/// beside it. A squeezed chord is drawn at the origin of a group that moves it
+/// into place and narrows it, slash included.
+fn chord(
+    at: Point,
+    size: f64,
+    pieces: &[Piece],
+    slash: Option<&Slash>,
+    squeeze: f64,
+    font_family: &str,
+) -> Box<dyn Node> {
     let tspans: String = pieces
         .iter()
         .map(|piece| render_piece(piece, TextStyle::Normal, size).to_string())
@@ -68,7 +77,11 @@ fn chord(at: Point, size: f64, pieces: &[Piece], squeeze: f64, font_family: &str
         .set("font-size", rounded(size))
         .add(Blob::new(tspans));
     if squeeze >= 1.0 {
-        return Box::new(text.set("x", rounded(at.x)).set("y", rounded(at.y)));
+        let text = text.set("x", rounded(at.x)).set("y", rounded(at.y));
+        return match slash {
+            None => Box::new(text),
+            Some(slash) => Box::new(Group::new().add(text).add(slash_line(slash, at))),
+        };
     }
     let transform = format!(
         "translate({} {}) scale({} 1)",
@@ -76,9 +89,20 @@ fn chord(at: Point, size: f64, pieces: &[Piece], squeeze: f64, font_family: &str
         rounded(at.y),
         rounded(squeeze)
     );
-    Box::new(
-        Group::new()
-            .set("transform", transform)
-            .add(text.set("x", 0).set("y", 0)),
-    )
+    let mut group = Group::new()
+        .set("transform", transform)
+        .add(text.set("x", 0).set("y", 0));
+    if let Some(slash) = slash {
+        group = group.add(slash_line(slash, Point { x: 0.0, y: 0.0 }));
+    }
+    Box::new(group)
+}
+
+/// `slash` as a line, for a chord whose baseline starts at `origin`.
+fn slash_line(slash: &Slash, origin: Point) -> SvgLine {
+    let point = |offset: Offset| Point {
+        x: origin.x + offset.x,
+        y: origin.y - offset.rise,
+    };
+    stroke(point(slash.from), point(slash.to), slash.width)
 }

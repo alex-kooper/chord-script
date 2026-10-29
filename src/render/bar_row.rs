@@ -12,7 +12,7 @@
 //! middle of a hanging bass, as in iReal Pro.
 
 use super::BarRowStyle;
-use super::chord::{self, BassPlacement, Piece};
+use super::chord::{self, BassPlacement, ChordLayout, Piece, Slash};
 use super::fonts::Font;
 use crate::model::{Bar, BarRow, Slot};
 
@@ -20,9 +20,9 @@ use crate::model::{Bar, BarRow, Slot};
 ///
 /// How far the row reaches above the chords' baseline: past a raised root
 /// accidental. A ♯ reaches a little further and peeks into the gap.
-const ASCENT: f64 = 1.0;
+const ASCENT: f64 = 1.08;
 /// How far the row reaches below the baseline: past a hanging bass and its ♯.
-const DESCENT: f64 = 0.9;
+const DESCENT: f64 = 0.7;
 /// Where bar lines end below the baseline: about the middle of a hanging bass.
 const BAR_LINE_DROP: f64 = 0.43;
 const BAR_LINE_WIDTH: f64 = 0.04;
@@ -65,11 +65,13 @@ pub(super) enum Mark {
     /// A filled circle: a dot of a repeat sign
     Dot { at: Point, radius: f64 },
     /// A chord whose baseline starts at `at`, drawn at `size` and squeezed
-    /// horizontally by `squeeze`: 1 when it fits as it is
+    /// horizontally by `squeeze`: 1 when it fits as it is. The slash of its
+    /// hanging bass is drawn and squeezed with it.
     Chord {
         at: Point,
         size: f64,
         pieces: Vec<Piece>,
+        slash: Option<Slash>,
         squeeze: f64,
     },
 }
@@ -131,13 +133,15 @@ fn bar_marks(bar: &Bar, start: f64, end: f64, baseline: f64, size: f64) -> Vec<M
         let at = Point { x, y: baseline };
         marks.push(match slot {
             Slot::Chord(symbol) => {
-                let pieces = chord::layout(symbol, Font::Chord, size, BassPlacement::Below);
+                let ChordLayout { pieces, slash } =
+                    chord::layout(symbol, Font::Chord, size, BassPlacement::Below);
                 let room = next - x - CLEARANCE * size;
                 let squeeze = (room.max(0.0) / chord::width(&pieces)).min(1.0);
                 Mark::Chord {
                     at,
                     size,
                     pieces,
+                    slash,
                     squeeze,
                 }
             }

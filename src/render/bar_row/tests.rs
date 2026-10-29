@@ -69,7 +69,7 @@ fn close(a: f64, b: f64) -> bool {
 
 #[test]
 fn a_row_is_the_gap_its_chords_and_a_hanging_bass_tall() {
-    assert!(close(height(&style()), GAP + 1.9 * SIZE));
+    assert!(close(height(&style()), GAP + 1.78 * SIZE));
 }
 
 #[test]

@@ -1,8 +1,10 @@
 //! PDF rendering of a [`Chart`]: one document, one PDF page per chart page.
 //!
-//! Text is embedded as selectable text in the bundled font (see
-//! [`super::fonts`]), so the file looks the same on every device, whatever
-//! fonts it has installed.
+//! Text is embedded in the bundled font (see [`super::fonts`]), so the file
+//! looks the same on every device, whatever fonts it has installed. Text
+//! lines can be selected and copied as written; bar rows are drawn for the
+//! eye, and copying one gives its letters out of order, without slashes or
+//! bar lines.
 //!
 //! Pages are currently drawn as SVG and converted with krilla. That is an
 //! implementation detail: the interface speaks only of charts, configuration,
