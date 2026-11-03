@@ -3,8 +3,8 @@
 //! [`paginate`] decides the physical pages. An explicit [`Block::PageBreak`]
 //! always starts a new page, and so does a row that would cross the bottom
 //! margin. It knows only vertical space: each row's height comes from the
-//! caller, so how rows are drawn stays in [`super::line`] and
-//! [`super::bar_row`].
+//! caller, given the row above it on the same page, so how rows are drawn
+//! stays in [`super::line`] and [`super::bar_row`].
 
 use crate::model::{BarRow, Block, Line};
 use crate::render::{LayoutConfig, RenderError, Result};
@@ -44,12 +44,15 @@ pub(super) struct Page<'c> {
 /// An automatic break drops the spacers (empty lines) that would otherwise
 /// start the next page, since that space only exists because of the break.
 ///
+/// `height_of` gives a row's height after the row above it on the same page,
+/// or at the top of a page.
+///
 /// Fails if a row is taller than the space between a page's margins, since
 /// no page could hold it.
 pub(super) fn paginate<'c>(
     blocks: &'c [Block],
     page: &LayoutConfig,
-    height_of: impl Fn(Row) -> f64,
+    height_of: impl Fn(Row, Option<Row>) -> f64,
 ) -> Result<Vec<Page<'c>>> {
     let mut paginator = Paginator::new(page);
     for block in blocks {
@@ -61,7 +64,7 @@ pub(super) fn paginate<'c>(
                 continue;
             }
         };
-        paginator.place(row, height_of(row))?;
+        paginator.place(row, &height_of)?;
     }
     Ok(paginator.finish())
 }
@@ -99,17 +102,21 @@ impl<'c, 'p> Paginator<'c, 'p> {
 
     /// Place a row below the previous one, first moving to a new page if its
     /// bottom would cross the bottom margin.
-    fn place(&mut self, row: Row<'c>, height: f64) -> Result<()> {
+    fn place(&mut self, row: Row<'c>, height_of: impl Fn(Row, Option<Row>) -> f64) -> Result<()> {
+        let at_top = height_of(row, None);
         let available = self.page.height - 2.0 * self.page.margin_vertical;
-        if height > available {
+        if at_top > available {
             return Err(match row {
-                Row::Text(line) => RenderError::line_taller_than_page(line, height, available),
-                Row::Bars(bars) => RenderError::bar_row_taller_than_page(bars, height, available),
+                Row::Text(line) => RenderError::line_taller_than_page(line, at_top, available),
+                Row::Bars(bars) => RenderError::bar_row_taller_than_page(bars, at_top, available),
             });
         }
 
+        let above = self.current.rows.last().map(|placed| placed.row);
+        let mut height = height_of(row, above);
         if self.y + height > self.page.height - self.page.margin_vertical {
             self.break_page(Break::Automatic);
+            height = at_top;
         }
         if self.dropping_spacers && row.is_spacer() {
             return Ok(());

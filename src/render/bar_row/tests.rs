@@ -86,6 +86,7 @@ fn bar_lines_run_from_the_top_of_the_chords_into_the_bass() {
     };
     assert!(close(from.y, BASELINE - ASCENT * SIZE));
     assert!(close(to.y, BASELINE + BAR_LINE_DROP * SIZE));
+    assert!(close(BOTTOM - to.y, room_below_bar_lines(&style())));
     assert!(to.y < BOTTOM, "a hanging bass reaches below the bar line");
 }
 

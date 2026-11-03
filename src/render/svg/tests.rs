@@ -5,6 +5,7 @@ use crate::render::{BarRowStyle, FontStyle, LayoutConfig};
 mod bars;
 mod chords;
 mod pagination;
+mod text_after_bars;
 
 /// A chart made only of text lines.
 fn chart_of(lines: Vec<Line>) -> Chart {

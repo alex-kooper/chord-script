@@ -54,9 +54,12 @@ impl SvgGenerator {
                 &self.config.bar_row,
             ));
         }
-        let pages = layout::paginate(&chart.blocks, &self.config.layout, |row| match row {
-            Row::Text(line) => line::height_of(line, &self.config),
-            Row::Bars(_) => bar_row::height_of(&self.config),
+        let pages = layout::paginate(&chart.blocks, &self.config.layout, |row, above| {
+            let after_bars = matches!(above, Some(Row::Bars(_)));
+            match row {
+                Row::Text(line) => line::height_of(line, after_bars, &self.config),
+                Row::Bars(_) => bar_row::height_of(&self.config),
+            }
         })?;
         Ok(pages.iter().map(|page| self.render_page(page)).collect())
     }

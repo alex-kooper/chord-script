@@ -7,14 +7,25 @@
 
 use crate::model::{Content, Inline, Line, LineLevel, TextStyle};
 use crate::render::RenderConfig;
+use crate::render::bar_row;
 use crate::render::chord::{self, BassPlacement, Piece};
 use crate::render::fonts::{self, Font};
 use svg::node::Blob;
 use svg::node::element::{TSpan, Text as SvgText};
 
 /// The vertical space a line occupies: its level's line height.
-pub(super) fn height_of(line: &Line, config: &RenderConfig) -> f64 {
-    config.line_height_for_level(line.level)
+///
+/// A text line right after a bar row, empty or not, takes back the room the
+/// row keeps below its bar lines for a hanging bass, so it sits as close
+/// below the bar lines as a line above the row does above them. Headers keep
+/// their height.
+pub(super) fn height_of(line: &Line, after_bars: bool, config: &RenderConfig) -> f64 {
+    let height = config.line_height_for_level(line.level);
+    if after_bars && line.level == LineLevel::Text {
+        (height - bar_row::room_below_bar_lines(&config.bar_row)).max(0.0)
+    } else {
+        height
+    }
 }
 
 /// Where a column's `x` is: at its start, middle, or end.

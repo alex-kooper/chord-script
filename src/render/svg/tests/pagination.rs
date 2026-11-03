@@ -17,12 +17,13 @@ fn small_page() -> LayoutConfig {
 }
 
 /// Fixed heights: `Header1` lines are taller than a whole page, bar rows are
-/// 30pt, and all other lines 20pt.
-fn height_of(row: Row) -> f64 {
-    match row {
-        Row::Text(line) if line.level == LineLevel::Header1 => 200.0,
-        Row::Text(_) => 20.0,
-        Row::Bars(_) => 30.0,
+/// 30pt, and all other lines 20pt, or 10pt right after a bar row.
+fn height_of(row: Row, above: Option<Row>) -> f64 {
+    match (row, above) {
+        (Row::Text(line), _) if line.level == LineLevel::Header1 => 200.0,
+        (Row::Text(_), Some(Row::Bars(_))) => 10.0,
+        (Row::Text(_), _) => 20.0,
+        (Row::Bars(_), _) => 30.0,
     }
 }
 
@@ -237,11 +238,21 @@ fn bar_rows_stack_with_lines_and_break_like_them() {
         [vec![
             entry("a", 30.0),
             entry("| % |", 60.0),
-            entry("b", 80.0)
+            entry("b", 70.0)
         ]]
     );
     let pages = layout(&[text("a"), text("b"), text("c"), bars()]);
     assert_eq!(pages[1], [entry("| % |", 40.0)]);
+}
+
+#[test]
+fn a_line_after_bars_that_starts_a_page_takes_its_height_at_the_top() {
+    let pages = layout(&[text("a"), bars(), bars(), text("b")]);
+    assert_eq!(pages[1], [entry("b", 30.0)]);
+    let pages = layout(&[text("a"), bars(), bars(), spacer(), text("b")]);
+    assert_eq!(pages[1], [entry("b", 30.0)]);
+    let pages = layout(&[bars(), Block::PageBreak, text("b")]);
+    assert_eq!(pages[1], [entry("b", 30.0)]);
 }
 
 #[test]

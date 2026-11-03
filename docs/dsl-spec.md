@@ -44,8 +44,8 @@ Text lines start with a weight marker: `===`, `==`, `=`, or `-`. The more `=`, t
 |--------|--------|-------------|
 | `===` | H1 (largest) | Song title |
 | `==` | H2 (medium) | Artist, subtitle |
-| `=` | H3 (smallest) | Section names, annotations |
-| `-` | Text | Comments, annotations |
+| `=` | H3 (smallest) | Section names |
+| `-` | Text | Comments, annotations, above or below bar rows |
 
 ### Line Rules
 
@@ -276,6 +276,15 @@ Bar rows are drawn in the style of iReal Pro:
   the top of the chords to about the middle of the bass.
 - Every bar row has the same height, with or without a bass, and a small gap
   above it. For more space between rows, add an empty line such as `==`.
+- A `-` line right after a bar row, empty or not, starts where the row's bar
+  lines end, so a comment sits as close below the bars as one above them.
+  `//` comments and blank lines between the row and the line don't count. It
+  leaves no room for a bass: if one reaches into the comment, put an empty `-`
+  line before it. Headers after a bar row, and a `-` line that starts a page,
+  keep their usual height.
+- Rows with the same lines between them are evenly spaced. To space all rows
+  alike, with or without comments, put a `-` line between every two rows,
+  empty where there is no comment.
 
 ### Planned
 

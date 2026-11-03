@@ -84,6 +84,12 @@ pub(crate) fn height(style: &BarRowStyle) -> f64 {
     style.gap + (ASCENT + DESCENT) * style.chord_size
 }
 
+/// The room at the bottom of a bar row, below its bar lines, kept for a
+/// hanging bass.
+pub(crate) fn room_below_bar_lines(style: &BarRowStyle) -> f64 {
+    (DESCENT - BAR_LINE_DROP) * style.chord_size
+}
+
 /// The marks of `row`, drawn between `left` and `right` in a row box whose
 /// bottom is at `bottom`.
 pub(super) fn layout(
