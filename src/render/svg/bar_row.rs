@@ -10,11 +10,6 @@ use svg::Node;
 use svg::node::Blob;
 use svg::node::element::{Circle, Group, Polygon, Text as SvgText};
 
-/// The vertical space a bar row occupies.
-pub(super) fn height_of(config: &RenderConfig) -> f64 {
-    bar_row::height(&config.bar_row)
-}
-
 /// Render a bar row whose box has its bottom edge at `bottom`.
 pub(super) fn render(row: &BarRow, config: &RenderConfig, bottom: f64) -> Vec<Box<dyn Node>> {
     let page = &config.layout;

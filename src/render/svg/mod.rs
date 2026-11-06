@@ -1,18 +1,20 @@
 //! SVG rendering of a [`Chart`].
 //!
-//! Pagination and vertical placement live in [`layout`]; the drawing of
-//! individual rows in [`line`] and [`bar_row`]. This module owns the generator
+//! Pagination and vertical placement live in [`layout`], the size of rows and
+//! the space between them in [`metrics`], and the drawing of individual rows
+//! in [`line`] and [`bar_row`]. This module owns the generator
 //! that wires them together: it paginates the chart, then builds one SVG
 //! document per page.
 
-use super::{BarRowStyle, RenderConfig, Result};
-use crate::model::Chart;
+use super::{BarRowStyle, RenderConfig, RenderError, Result};
+use crate::model::{Chart, LineLevel};
 use derive_more::{AsRef, Display, Into};
 use svg::{Document, Node};
 
 mod bar_row;
 mod layout;
 mod line;
+mod metrics;
 
 #[cfg(test)]
 mod tests;
@@ -43,24 +45,12 @@ impl SvgGenerator {
     /// Render a chart to SVG, one document per page.
     ///
     /// There is always at least one page; an empty chart renders as one blank
-    /// page. Fails if a row is too tall to fit on any page, or if the bar-row
-    /// style's chord size isn't a positive number or its gap a non-negative
-    /// one.
+    /// page. Fails if a row is too tall to fit on any page, or if a font or
+    /// chord size isn't a positive number or a space kept above or below rows
+    /// isn't a non-negative one.
     pub fn render(&self, chart: &Chart) -> Result<Vec<SvgPage>> {
-        let BarRowStyle { chord_size, gap } = self.config.bar_row;
-        let valid = chord_size.is_finite() && chord_size > 0.0 && gap.is_finite() && gap >= 0.0;
-        if !valid {
-            return Err(super::RenderError::invalid_bar_row_style(
-                &self.config.bar_row,
-            ));
-        }
-        let pages = layout::paginate(&chart.blocks, &self.config.layout, |row, above| {
-            let after_bars = matches!(above, Some(Row::Bars(_)));
-            match row {
-                Row::Text(line) => line::height_of(line, after_bars, &self.config),
-                Row::Bars(_) => bar_row::height_of(&self.config),
-            }
-        })?;
+        check_styles(&self.config)?;
+        let pages = layout::paginate(&chart.blocks, &self.config.layout, &self.config)?;
         Ok(pages.iter().map(|page| self.render_page(page)).collect())
     }
 
@@ -93,4 +83,33 @@ impl SvgGenerator {
             Row::Bars(bars) => bar_row::render(bars, &self.config, placed.y),
         }
     }
+}
+
+/// Fails on the first style whose size isn't a positive number or whose
+/// space above or below isn't a non-negative one.
+fn check_styles(config: &RenderConfig) -> Result<()> {
+    let size = |size: f64| size.is_finite() && size > 0.0;
+    let space = |space: f64| space.is_finite() && space >= 0.0;
+
+    let levels = [
+        LineLevel::Header1,
+        LineLevel::Header2,
+        LineLevel::Header3,
+        LineLevel::Text,
+    ];
+    for level in levels {
+        let style = config.font_style_for_level(level);
+        if !(size(style.size) && space(style.above) && space(style.below)) {
+            return Err(RenderError::invalid_font_style(level, style));
+        }
+    }
+    let BarRowStyle {
+        chord_size,
+        above,
+        below,
+    } = config.bar_row;
+    if !(size(chord_size) && space(above) && space(below)) {
+        return Err(RenderError::invalid_bar_row_style(&config.bar_row));
+    }
+    Ok(())
 }

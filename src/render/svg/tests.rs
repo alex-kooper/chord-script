@@ -1,11 +1,13 @@
 use super::*;
 use crate::model::{Block, Chart, Inline, Line, LineLevel, TextStyle};
+use crate::render::fonts::{self, Font};
 use crate::render::{BarRowStyle, FontStyle, LayoutConfig};
 
 mod bars;
 mod chords;
+mod pages;
 mod pagination;
-mod text_after_bars;
+mod text_and_bars;
 
 /// A chart made only of text lines.
 fn chart_of(lines: Vec<Line>) -> Chart {
@@ -30,6 +32,31 @@ fn render_one(generator: &SvgGenerator, chart: &Chart) -> String {
 
 fn render_default(chart: &Chart) -> String {
     render_one(&SvgGenerator::with_defaults(), chart)
+}
+
+/// The `y` of the text element drawing `word`.
+pub(super) fn baseline_of(svg: &str, word: &str) -> f64 {
+    svg.split("<text")
+        .find(|element| element.contains(&format!(">{word}<")))
+        .and_then(|element| element.split(" y=\"").nth(1))
+        .and_then(|rest| rest.split('"').next())
+        .expect("the word is drawn")
+        .parse()
+        .expect("y is a number")
+}
+
+pub(super) fn close(a: f64, b: f64) -> bool {
+    (a - b).abs() < 1e-9
+}
+
+/// Like [`close`], for a value read off a polygon, whose points are written
+/// with three decimals.
+pub(super) fn close_to_drawn(drawn: f64, exact: f64) -> bool {
+    (drawn - exact).abs() <= 5e-4 + 1e-9
+}
+
+pub(super) fn text_cap_height(size: f64) -> f64 {
+    fonts::cap_height(Font::Text(TextStyle::Normal), size)
 }
 
 /// The corners of every polygon in `svg`, whatever other attributes it has.
@@ -135,26 +162,31 @@ fn test_custom_config() {
         header1: FontStyle {
             size: 24.0,
             weight: "bold".to_string(),
-            line_height: 40.0,
+            above: 20.0,
+            below: 12.0,
         },
         header2: FontStyle {
             size: 20.0,
             weight: "bold".to_string(),
-            line_height: 30.0,
+            above: 16.0,
+            below: 10.0,
         },
         header3: FontStyle {
             size: 18.0,
             weight: "600".to_string(),
-            line_height: 27.0,
+            above: 14.0,
+            below: 9.0,
         },
         text: FontStyle {
             size: 12.0,
             weight: "normal".to_string(),
-            line_height: 18.0,
+            above: 8.0,
+            below: 8.0,
         },
         bar_row: BarRowStyle {
             chord_size: 16.0,
-            gap: 4.0,
+            above: 4.0,
+            below: 4.0,
         },
     };
     let chart = chart_of(vec![left_line(
@@ -167,28 +199,58 @@ fn test_custom_config() {
 }
 
 #[test]
-fn stacked_lines_get_distinct_increasing_y() {
-    let chart = chart_of(vec![
-        left_line(LineLevel::Text, vec![Inline::plain("first")]),
-        left_line(LineLevel::Text, vec![Inline::plain("second")]),
-    ]);
-    let svg = render_default(&chart);
-
-    // Defaults: margin_vertical = 28, Text line_height = 22 -> baselines 50 and 72.
-    assert!(svg.contains("y=\"50\""));
-    assert!(svg.contains("y=\"72\""));
+fn the_first_line_has_its_capitals_at_the_top_margin() {
+    let chart = chart_of(vec![left_line(
+        LineLevel::Text,
+        vec![Inline::plain("first")],
+    )]);
+    let config = RenderConfig::default();
+    let cap_height = text_cap_height(config.text.size);
+    let baseline = baseline_of(&render_default(&chart), "first");
+    assert!(close(baseline, config.layout.margin_vertical + cap_height));
 }
 
 #[test]
-fn empty_line_takes_its_level_height() {
+fn lines_are_kept_apart_by_the_larger_of_the_spaces_they_keep() {
+    let config = RenderConfig::default();
+    let baselines = |[upper, lower]: [LineLevel; 2]| {
+        let svg = render_default(&chart_of(vec![
+            left_line(upper, vec![Inline::plain("x")]),
+            left_line(lower, vec![Inline::plain("y")]),
+        ]));
+        baseline_of(&svg, "y") - baseline_of(&svg, "x")
+    };
+    let text = |level| text_cap_height(config.font_style_for_level(level).size);
+
+    let between_texts = config.text.below.max(config.text.above);
+    let header_below = config.header2.below.max(config.text.above);
+    let header_above = config.text.below.max(config.header2.above);
+    let cases = [
+        ([LineLevel::Text, LineLevel::Text], between_texts),
+        ([LineLevel::Header2, LineLevel::Text], header_below),
+        ([LineLevel::Text, LineLevel::Header2], header_above),
+    ];
+    for (levels, space) in cases {
+        let expected = space + text(levels[1]);
+        assert!(close(baselines(levels), expected), "{levels:?}");
+    }
+}
+
+#[test]
+fn an_empty_line_takes_the_space_of_its_level() {
     let chart = chart_of(vec![
         left_line(LineLevel::Header2, vec![]),
         left_line(LineLevel::Text, vec![Inline::plain("after spacer")]),
     ]);
     let svg = render_default(&chart);
+    let config = RenderConfig::default();
+    let space = config.header2.below.max(config.text.above);
+    let expected = config.layout.margin_vertical
+        + text_cap_height(config.header2.size)
+        + space
+        + text_cap_height(config.text.size);
 
-    // Defaults: margin 28 + empty H2 (32) + Text (22) -> baseline 82.
-    assert!(svg.contains("y=\"82\""));
+    assert!(close(baseline_of(&svg, "after spacer"), expected));
     assert_eq!(svg.matches("<text").count(), 1, "empty line draws nothing");
 }
 

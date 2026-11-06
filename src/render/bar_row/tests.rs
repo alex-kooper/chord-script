@@ -3,7 +3,6 @@ use crate::model::{Chord, ChordQuality, Letter, Note};
 use vec1::Vec1;
 
 const SIZE: f64 = 20.0;
-const GAP: f64 = 5.0;
 /// The row box's bottom edge; the chords' baseline is `DESCENT` above it.
 const BOTTOM: f64 = 100.0;
 const BASELINE: f64 = BOTTOM - DESCENT * SIZE;
@@ -11,7 +10,8 @@ const BASELINE: f64 = BOTTOM - DESCENT * SIZE;
 fn style() -> BarRowStyle {
     BarRowStyle {
         chord_size: SIZE,
-        gap: GAP,
+        above: 5.0,
+        below: 5.0,
     }
 }
 
@@ -68,8 +68,8 @@ fn close(a: f64, b: f64) -> bool {
 }
 
 #[test]
-fn a_row_is_the_gap_its_chords_and_a_hanging_bass_tall() {
-    assert!(close(height(&style()), GAP + 1.78 * SIZE));
+fn a_row_is_its_chords_and_a_hanging_bass_tall() {
+    assert!(close(height(&style()), 1.78 * SIZE));
 }
 
 #[test]
@@ -85,6 +85,10 @@ fn bar_lines_run_from_the_top_of_the_chords_into_the_bass() {
         panic!("the first mark is a bar line: {marks:?}");
     };
     assert!(close(from.y, BASELINE - ASCENT * SIZE));
+    assert!(
+        close(from.y, BOTTOM - height(&style())),
+        "from the top of the box"
+    );
     assert!(close(to.y, BASELINE + BAR_LINE_DROP * SIZE));
     assert!(close(BOTTOM - to.y, room_below_bar_lines(&style())));
     assert!(to.y < BOTTOM, "a hanging bass reaches below the bar line");
@@ -120,7 +124,9 @@ fn a_bar_repeat_is_a_slash_between_two_dots_centered_in_its_bar() {
         panic!("the sign's slash: {slash:?}");
     };
     assert!(close((from.x + to.x) / 2.0, 150.0) && from.x < to.x);
-    assert!(close(from.y, BASELINE) && close(to.y, BASELINE - CAP_HEIGHT * SIZE));
+    assert!(
+        close(from.y, BASELINE) && close(to.y, BASELINE - fonts::cap_height(Font::Chord, SIZE))
+    );
     assert!(*width > SLASH_WIDTH * SIZE, "heavier than a beat slash");
 
     let (Mark::Dot { at: upper, .. }, Mark::Dot { at: lower, .. }) = (upper, lower) else {

@@ -170,11 +170,11 @@ fn slashes_and_repeat_signs_are_drawn_as_strokes_and_dots() {
 }
 
 #[test]
-fn the_tallest_chords_stay_inside_the_row() {
+fn the_tallest_chords_stay_inside_the_row_and_the_space_above_it() {
     let config = RenderConfig::default();
-    let top = config.layout.margin_vertical;
-    let bottom = top + bar_row::height(&config.bar_row);
-    let gap_end = top + config.bar_row.gap;
+    let row_top = config.layout.margin_vertical;
+    let top = row_top - config.bar_row.above;
+    let bottom = row_top + bar_row::height(&config.bar_row);
 
     let cases = [
         Chord::new(
@@ -201,9 +201,9 @@ fn the_tallest_chords_stay_inside_the_row() {
         );
     }
 
-    // A root ♯ peeks into the gap, so ASCENT is tight against the glyphs.
+    // A root ♯ peeks out of the row, so ASCENT is tight against the glyphs.
     let (sharp_top, _) = chord_ink(Chord::new(Note::sharp(Letter::C), None, None));
-    assert!(sharp_top < gap_end, "{sharp_top} should sit in the gap");
+    assert!(sharp_top < row_top, "{sharp_top} should peek above the row");
     // A bass ♯ reaches the bottom of the row, so DESCENT is tight too.
     let (_, bass_bottom) = chord_ink(Chord::new(
         Note::natural(Letter::C),
@@ -216,39 +216,48 @@ fn the_tallest_chords_stay_inside_the_row() {
     );
 }
 
-fn with_bar_row(chord_size: f64, gap: f64) -> SvgGenerator {
+fn with_bar_row(chord_size: f64, above: f64, below: f64) -> SvgGenerator {
     SvgGenerator::new(RenderConfig {
-        bar_row: BarRowStyle { chord_size, gap },
+        bar_row: BarRowStyle {
+            chord_size,
+            above,
+            below,
+        },
         ..RenderConfig::default()
     })
 }
 
 #[test]
-fn a_chord_size_or_gap_that_is_not_a_fitting_number_is_an_error() {
+fn a_chord_size_or_space_that_is_not_a_fitting_number_is_an_error() {
     let chart = Chart::new(vec![]);
     let cases = [
-        (0.0, 6.0),
-        (-1.0, 6.0),
-        (20.0, -0.1),
-        (f64::NAN, 6.0),
-        (f64::INFINITY, 6.0),
-        (20.0, f64::NAN),
-        (20.0, f64::INFINITY),
+        (0.0, 6.0, 6.0),
+        (-1.0, 6.0, 6.0),
+        (f64::NAN, 6.0, 6.0),
+        (f64::INFINITY, 6.0, 6.0),
+        (20.0, -0.1, 6.0),
+        (20.0, f64::NAN, 6.0),
+        (20.0, f64::INFINITY, 6.0),
+        (20.0, 6.0, -0.1),
+        (20.0, 6.0, f64::NAN),
+        (20.0, 6.0, f64::INFINITY),
     ];
-    for (chord_size, gap) in cases {
-        let error = with_bar_row(chord_size, gap)
+    for (chord_size, above, below) in cases {
+        let error = with_bar_row(chord_size, above, below)
             .render(&chart)
             .expect_err("the row cannot be drawn");
         // NaN never equals itself, so the fields are compared by their bits.
         let RenderError::InvalidBarRowStyle {
             chord_size: reported_size,
-            gap: reported_gap,
+            above: reported_above,
+            below: reported_below,
         } = error
         else {
-            panic!("{error:?} for {chord_size}, {gap}");
+            panic!("{error:?} for {chord_size}, {above}, {below}");
         };
         assert_eq!(reported_size.to_bits(), chord_size.to_bits());
-        assert_eq!(reported_gap.to_bits(), gap.to_bits());
+        assert_eq!(reported_above.to_bits(), above.to_bits());
+        assert_eq!(reported_below.to_bits(), below.to_bits());
     }
 }
 
@@ -260,7 +269,7 @@ fn a_tiny_chord_size_still_renders() {
     ];
     let chart = Chart::new(vec![BarRow::new(bars).into()]);
     for chord_size in [1e-6, 1e-14, 1e-20] {
-        let pages = with_bar_row(chord_size, 6.0)
+        let pages = with_bar_row(chord_size, 6.0, 6.0)
             .render(&chart)
             .expect("a tiny chord size is still a size");
         let svg: String = pages.into_iter().next().expect("a page").into();

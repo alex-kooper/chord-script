@@ -54,8 +54,11 @@ Text lines start with a weight marker: `===`, `==`, `=`, or `-`. The more `=`, t
   and the Unicode line/paragraph separators also end a line.
 - The weight marker must start in column 0 and be followed by a space.
   `===Title` and indented markers are errors; `==` in the middle of a line is plain text.
-- A bare marker (`===`, `==`, `=`, `-`) is an empty line of that weight's height,
-  so `===` leaves more space than `=`.
+- Each weight keeps some space above and below its lines, whatever its font
+  size. A header keeps more above than below, so it reads with what follows
+  it. The first line of a page starts at the top margin.
+- A bare marker (`===`, `==`, `=`, `-`) is an empty line: it takes as much
+  space as a line of that weight, so `===` leaves more space than `=`.
 - Blank lines (empty or whitespace-only) are ignored, like whitespace in code.
 
 ### Alignment: `LEFT <CENTER> RIGHT`
@@ -274,14 +277,15 @@ Bar rows are drawn in the style of iReal Pro:
   it fewer bars.
 - The bass hangs below the root, a little to the right. Bar lines run from
   the top of the chords to about the middle of the bass.
-- Every bar row has the same height, with or without a bass, and a small gap
-  above it. For more space between rows, add an empty line such as `==`.
-- A `-` line right after a bar row, empty or not, starts where the row's bar
-  lines end, so a comment sits as close below the bars as one above them.
-  `//` comments and blank lines between the row and the line don't count. It
-  leaves no room for a bass: if one reaches into the comment, put an empty `-`
-  line before it. Headers after a bar row, and a `-` line that starts a page,
-  keep their usual height.
+- Every bar row has the same height, with or without a bass, and keeps a
+  little space above and below it. For more space between rows, add an empty
+  line such as `==`.
+- A `-` line right after a bar row, empty or not, keeps only its usual space
+  from the row's bar lines, so a comment sits as close below the bars as one
+  above them. `//` comments and blank lines between the row and the line
+  don't count. It leaves no room for a bass: if one reaches into the comment,
+  put an empty `-` line before it. Headers after a bar row keep clear of the
+  bass.
 - Rows with the same lines between them are evenly spaced. To space all rows
   alike, with or without comments, put a `-` line between every two rows,
   empty where there is no comment.

@@ -114,6 +114,16 @@ pub(super) fn advance(text: &str, font: Font, size: f64) -> f64 {
     f64::from(units) * size / f64::from(face.units_per_em())
 }
 
+/// The height of capitals in `font` at `size`. The text and chord faces all
+/// share one, so it doesn't matter which of them measures a line.
+pub(super) fn cap_height(font: Font, size: f64) -> f64 {
+    let face = &faces()[face_index(font)];
+    let units = face
+        .capital_height()
+        .expect("the bundled faces have a cap height");
+    f64::from(units) * size / f64::from(face.units_per_em())
+}
+
 #[cfg(test)]
 pub(super) fn has_glyph(font: Font, c: char) -> bool {
     faces()[face_index(font)].glyph_index(c).is_some()
@@ -250,6 +260,21 @@ mod tests {
         );
         assert_ne!(advance("C7", Font::Text(TextStyle::Bold), 10.0), regular);
         assert!(advance("♭", Font::Music, 10.0) > 0.0);
+    }
+
+    #[test]
+    fn the_text_and_chord_faces_share_one_cap_height() {
+        let regular = cap_height(Font::Text(TextStyle::Normal), 10.0);
+        assert!(regular > 0.0);
+        let others = [
+            Font::Text(TextStyle::Bold),
+            Font::Text(TextStyle::Italic),
+            Font::Text(TextStyle::BoldItalic),
+            Font::Chord,
+        ];
+        for font in others {
+            assert_eq!(cap_height(font, 10.0), regular, "{font:?}");
+        }
     }
 
     #[test]

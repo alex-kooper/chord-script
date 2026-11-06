@@ -7,19 +7,19 @@
 //! after it, and one too wide for the room before the next thing drawn in its
 //! bar is squeezed horizontally to fit, keeping its height.
 //!
-//! The row's box has the gap at its top, then the chords, then the bass
-//! hanging below them. Bar lines run from the top of the chords to about the
-//! middle of a hanging bass, as in iReal Pro.
+//! The row's box holds the chords, then the bass hanging below them. Bar
+//! lines run from the top of the box to about the middle of a hanging bass,
+//! as in iReal Pro.
 
 use super::BarRowStyle;
 use super::chord::{self, BassPlacement, ChordLayout, Piece, Slash};
-use super::fonts::Font;
+use super::fonts::{self, Font};
 use crate::model::{Bar, BarRow, Slot};
 
 /// Fractions of the chord size, set by eye after iReal Pro.
 ///
 /// How far the row reaches above the chords' baseline: past a raised root
-/// accidental. A ♯ reaches a little further and peeks into the gap.
+/// accidental. A ♯ reaches a little further, into the space above the row.
 const ASCENT: f64 = 1.08;
 /// How far the row reaches below the baseline: past a hanging bass and its ♯.
 const DESCENT: f64 = 0.7;
@@ -30,8 +30,6 @@ const BAR_LINE_WIDTH: f64 = 0.04;
 const INSET: f64 = 0.2;
 /// The least space left between a chord and what follows it in its bar.
 const CLEARANCE: f64 = 0.15;
-/// The height of Noto Sans capitals: a beat slash is as tall as the root.
-const CAP_HEIGHT: f64 = 0.714;
 /// How far right a beat slash leans over its height.
 const SLASH_LEAN: f64 = 0.3;
 /// Between the stems of the root and of the smaller quality: a long diagonal
@@ -78,10 +76,9 @@ pub(super) enum Mark {
     },
 }
 
-/// The vertical space a bar row takes: the gap above it, its chords, and the
-/// bass hanging below them.
+/// The height of a bar row's box: its chords and the bass hanging below them.
 pub(crate) fn height(style: &BarRowStyle) -> f64 {
-    style.gap + (ASCENT + DESCENT) * style.chord_size
+    (ASCENT + DESCENT) * style.chord_size
 }
 
 /// The room at the bottom of a bar row, below its bar lines, kept for a
@@ -166,7 +163,7 @@ fn beat_slash(at: Point, size: f64) -> Mark {
         from: at,
         to: Point {
             x: at.x + SLASH_LEAN * size,
-            y: at.y - CAP_HEIGHT * size,
+            y: at.y - fonts::cap_height(Font::Chord, size),
         },
         width: SLASH_WIDTH * size,
     }
@@ -176,7 +173,7 @@ fn beat_slash(at: Point, size: f64) -> Mark {
 /// the height of the root: a slash leaning right, a dot above it on the left,
 /// and one below it on the right.
 fn repeat_sign(start: f64, end: f64, baseline: f64, size: f64) -> Vec<Mark> {
-    let height = CAP_HEIGHT * size;
+    let height = fonts::cap_height(Font::Chord, size);
     let middle = Point {
         x: (start + end) / 2.0,
         y: baseline - height / 2.0,

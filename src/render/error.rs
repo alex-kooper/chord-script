@@ -1,8 +1,8 @@
 //! Errors that stop a chart from being rendered, in any output format.
 
-use super::BarRowStyle;
 use super::inline::typed_text;
-use crate::model::{BarRow, Line};
+use super::{BarRowStyle, FontStyle};
+use crate::model::{BarRow, Line, LineLevel};
 use thiserror::Error;
 
 /// Result type alias for rendering operations
@@ -25,12 +25,28 @@ pub enum RenderError {
     #[error("invalid page size {width}pt × {height}pt: both sides must be positive")]
     InvalidPageSize { width: f64, height: f64 },
 
-    /// A bar row cannot be drawn: its chord size is not positive, or its gap
-    /// is negative.
+    /// A bar row cannot be drawn: its chord size is not positive, or the
+    /// space it keeps above or below is negative.
     #[error(
-        "invalid bar row style: chord size {chord_size}pt must be a positive number and gap {gap}pt a non-negative one"
+        "invalid bar row style: chord size {chord_size}pt must be a positive number, and the space above {above}pt and below {below}pt non-negative ones"
     )]
-    InvalidBarRowStyle { chord_size: f64, gap: f64 },
+    InvalidBarRowStyle {
+        chord_size: f64,
+        above: f64,
+        below: f64,
+    },
+
+    /// The lines of a level cannot be drawn: their font size is not positive,
+    /// or the space they keep above or below is negative.
+    #[error(
+        "invalid {level:?} style: font size {size}pt must be a positive number, and the space above {above}pt and below {below}pt non-negative ones"
+    )]
+    InvalidFontStyle {
+        level: LineLevel,
+        size: f64,
+        above: f64,
+        below: f64,
+    },
 
     /// No family in the configured font family list is a bundled font, so a
     /// PDF would have no text.
@@ -57,7 +73,17 @@ impl RenderError {
     pub(super) fn invalid_bar_row_style(style: &BarRowStyle) -> Self {
         Self::InvalidBarRowStyle {
             chord_size: style.chord_size,
-            gap: style.gap,
+            above: style.above,
+            below: style.below,
+        }
+    }
+
+    pub(super) fn invalid_font_style(level: LineLevel, style: &FontStyle) -> Self {
+        Self::InvalidFontStyle {
+            level,
+            size: style.size,
+            above: style.above,
+            below: style.below,
         }
     }
 

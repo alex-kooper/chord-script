@@ -1,8 +1,8 @@
-use super::super::layout::{Page, Row, paginate};
-use super::{chart_of, left_line};
-use crate::model::{Bar, BarRow, Block, Chart, Inline, LineLevel};
+use super::super::layout::{Metrics, Page, Row, paginate};
+use super::left_line;
+use crate::model::{Bar, BarRow, Block, Inline, LineLevel};
 use crate::render::inline::typed_text;
-use crate::render::{LayoutConfig, RenderConfig, RenderError, SvgGenerator};
+use crate::render::{LayoutConfig, RenderError};
 use vec1::vec1;
 
 /// A 100pt-tall page with 10pt margins: baselines may go down to y = 90, and
@@ -16,14 +16,26 @@ fn small_page() -> LayoutConfig {
     }
 }
 
-/// Fixed heights: `Header1` lines are taller than a whole page, bar rows are
-/// 30pt, and all other lines 20pt, or 10pt right after a bar row.
-fn height_of(row: Row, above: Option<Row>) -> f64 {
-    match (row, above) {
-        (Row::Text(line), _) if line.level == LineLevel::Header1 => 200.0,
-        (Row::Text(_), Some(Row::Bars(_))) => 10.0,
-        (Row::Text(_), _) => 20.0,
-        (Row::Bars(_), _) => 30.0,
+/// Fixed sizes: `Header1` lines are taller than a whole page, bar rows are
+/// 30pt, and all other lines 20pt. Rows touch, except a line after a bar row
+/// reaches 10pt up into it, and a `Header2` line keeps 5pt above it.
+struct Fixed;
+
+impl Metrics for Fixed {
+    fn height(&self, row: Row) -> f64 {
+        match row {
+            Row::Text(line) if line.level == LineLevel::Header1 => 200.0,
+            Row::Text(_) => 20.0,
+            Row::Bars(_) => 30.0,
+        }
+    }
+
+    fn space_between(&self, upper: Row, lower: Row) -> f64 {
+        match (upper, lower) {
+            (_, Row::Text(line)) if line.level == LineLevel::Header2 => 5.0,
+            (Row::Bars(_), Row::Text(_)) => -10.0,
+            _ => 0.0,
+        }
     }
 }
 
@@ -48,7 +60,7 @@ fn tall(content: &str) -> Block {
 /// Each page as its rows' `(text, y)` pairs; a spacer's text is `""`, and a
 /// bar row's is the row as written.
 fn layout(blocks: &[Block]) -> Vec<Vec<(String, f64)>> {
-    paginate(blocks, &small_page(), height_of)
+    paginate(blocks, &small_page(), &Fixed)
         .expect("blocks should fit on pages")
         .iter()
         .map(page_contents)
@@ -93,6 +105,18 @@ fn lines_stack_down_from_the_top_margin() {
 }
 
 #[test]
+fn rows_keep_their_space_apart_but_not_at_the_top_of_a_page() {
+    let header = || -> Block { left_line(LineLevel::Header2, vec![Inline::plain("h")]).into() };
+    assert_eq!(
+        layout(&[header(), text("a"), header(), Block::PageBreak, header()]),
+        [
+            vec![entry("h", 30.0), entry("a", 50.0), entry("h", 75.0)],
+            vec![entry("h", 30.0)]
+        ]
+    );
+}
+
+#[test]
 fn line_ending_exactly_at_the_bottom_margin_fits() {
     let pages = layout(&full_page());
     assert_eq!(pages.len(), 1);
@@ -108,7 +132,7 @@ fn line_that_does_not_fit_starts_a_new_page() {
 
 #[test]
 fn line_taller_than_a_page_is_an_error() {
-    let error = paginate(&[text("a"), tall("huge")], &small_page(), height_of)
+    let error = paginate(&[text("a"), tall("huge")], &small_page(), &Fixed)
         .expect_err("a 200pt line cannot fit in 80pt");
     assert_eq!(
         error,
@@ -127,28 +151,11 @@ fn line_taller_than_a_page_is_an_error() {
 #[test]
 fn empty_line_taller_than_a_page_is_described_by_its_level() {
     let empty_tall: Block = left_line(LineLevel::Header1, vec![]).into();
-    let error = paginate(&[empty_tall], &small_page(), height_of).expect_err("too tall");
+    let error = paginate(&[empty_tall], &small_page(), &Fixed).expect_err("too tall");
     assert!(
         error.to_string().starts_with("an empty Header1 line"),
         "{error}"
     );
-}
-
-#[test]
-fn render_fails_when_a_line_cannot_fit_on_any_page() {
-    // 20pt between the margins; a default H1 line is 24pt tall.
-    let config = RenderConfig {
-        layout: LayoutConfig {
-            height: 40.0,
-            ..small_page()
-        },
-        ..RenderConfig::default()
-    };
-    let chart = chart_of(vec![left_line(
-        LineLevel::Header1,
-        vec![Inline::plain("Title")],
-    )]);
-    assert!(SvgGenerator::new(config).render(&chart).is_err());
 }
 
 #[test]
@@ -213,25 +220,6 @@ fn spacers_below_content_on_a_new_page_are_kept() {
 }
 
 #[test]
-fn each_rendered_page_is_a_standalone_svg() {
-    let chart = Chart::new(vec![text("first"), Block::PageBreak, text("second")]);
-    let pages: Vec<String> = SvgGenerator::with_defaults()
-        .render(&chart)
-        .expect("chart should render")
-        .into_iter()
-        .map(String::from)
-        .collect();
-
-    assert_eq!(pages.len(), 2);
-    for page in &pages {
-        assert!(page.starts_with("<svg"), "{page}");
-        assert!(page.ends_with("</svg>"), "{page}");
-    }
-    assert!(pages[0].contains("first") && !pages[0].contains("second"));
-    assert!(pages[1].contains("second") && !pages[1].contains("first"));
-}
-
-#[test]
 fn bar_rows_stack_with_lines_and_break_like_them() {
     assert_eq!(
         layout(&[text("a"), bars(), text("b")]),
@@ -246,7 +234,7 @@ fn bar_rows_stack_with_lines_and_break_like_them() {
 }
 
 #[test]
-fn a_line_after_bars_that_starts_a_page_takes_its_height_at_the_top() {
+fn a_line_after_bars_that_starts_a_page_sits_at_the_top_margin() {
     let pages = layout(&[text("a"), bars(), bars(), text("b")]);
     assert_eq!(pages[1], [entry("b", 30.0)]);
     let pages = layout(&[text("a"), bars(), bars(), spacer(), text("b")]);
@@ -261,25 +249,9 @@ fn bar_row_taller_than_a_page_is_an_error_naming_the_row() {
         height: 40.0,
         ..small_page()
     };
-    let error = paginate(&[bars()], &page, height_of).expect_err("30pt cannot fit in 20pt");
+    let error = paginate(&[bars()], &page, &Fixed).expect_err("30pt cannot fit in 20pt");
     assert_eq!(
         error.to_string(),
         "bar row \"| % |\" is 30pt tall, but a page has only 20pt between its margins"
     );
-}
-
-#[test]
-fn overflow_renders_onto_following_pages() {
-    // Defaults: 842pt page, 28pt margins, 22pt text lines -> 35 lines per page.
-    let lines = (0..40)
-        .map(|n| left_line(LineLevel::Text, vec![Inline::plain(format!("line {n}"))]))
-        .collect();
-    let pages = SvgGenerator::with_defaults()
-        .render(&chart_of(lines))
-        .expect("chart should render");
-
-    assert_eq!(pages.len(), 2);
-    let second: &str = pages[1].as_ref();
-    assert!(second.contains(">line 35<"), "{second}");
-    assert!(second.contains("y=\"50\""), "restarts at the top margin");
 }
