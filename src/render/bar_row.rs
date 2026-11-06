@@ -1,7 +1,8 @@
 //! How a bar row is laid out, whatever the output format.
 //!
-//! The row spans the page between its margins, split evenly into its bars,
-//! and each bar evenly into its slots. A chord or beat slash starts a little
+//! The row spans the page between its margins, split evenly into its bars and
+//! the bars its spans stand for, and each bar evenly into its slots. Only
+//! bars are drawn, with a bar line on each side. A chord or beat slash starts a little
 //! after the start of its slot, so a beat always lands at the same place in a
 //! bar; `%` is centered in its bar. A chord may reach over the empty slots
 //! after it, and one too wide for the room before the next thing drawn in its
@@ -98,9 +99,29 @@ pub(super) fn layout(
 ) -> Vec<Mark> {
     let size = style.chord_size;
     let baseline = bottom - DESCENT * size;
-    let bar_width = (right - left) / row.bars.len() as f64;
-    let edges = (0..=row.bars.len()).map(|index| left + index as f64 * bar_width);
-    let bar_lines = edges.map(|x| Mark::Stroke {
+    let bar_width = (right - left) / row.width().get() as f64;
+    let x = |bars: usize| left + bars as f64 * bar_width;
+
+    let bars: Vec<(usize, &Bar)> = row.bars().collect();
+    // Bars side by side share the edge between them.
+    let mut edges: Vec<usize> = bars
+        .iter()
+        .flat_map(|&(start, _)| [start, start + 1])
+        .collect();
+    edges.dedup();
+
+    let bar_lines = edges
+        .into_iter()
+        .map(|edge| bar_line(x(edge), baseline, size));
+    let contents = bars
+        .iter()
+        .flat_map(|&(start, bar)| bar_marks(bar, x(start), x(start + 1), baseline, size));
+    bar_lines.chain(contents).collect()
+}
+
+/// A bar line at `x`, from the top of the row's box into the bass.
+fn bar_line(x: f64, baseline: f64, size: f64) -> Mark {
+    Mark::Stroke {
         from: Point {
             x,
             y: baseline - ASCENT * size,
@@ -110,12 +131,7 @@ pub(super) fn layout(
             y: baseline + BAR_LINE_DROP * size,
         },
         width: BAR_LINE_WIDTH * size,
-    });
-    let contents = row.bars.iter().enumerate().flat_map(|(index, bar)| {
-        let start = left + index as f64 * bar_width;
-        bar_marks(bar, start, start + bar_width, baseline, size)
-    });
-    bar_lines.chain(contents).collect()
+    }
 }
 
 /// The marks inside the bar from `start` to `end`.

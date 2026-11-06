@@ -1,7 +1,8 @@
 use super::{polygons, render_default};
-use crate::model::{Bar, BarRow, Chart, Chord, ChordQuality, Letter, Note, Slot};
+use crate::model::{Bar, BarRow, Chart, Chord, ChordQuality, Letter, Note, Slot, Span};
 use crate::render::fonts;
 use crate::render::{BarRowStyle, RenderConfig, RenderError, SvgGenerator, bar_row};
+use std::num::NonZeroUsize;
 use vec1::{Vec1, vec1};
 
 fn chord(letter: Letter, quality: Option<&str>) -> Slot {
@@ -167,6 +168,15 @@ fn slashes_and_repeat_signs_are_drawn_as_strokes_and_dots() {
     );
     assert_eq!(svg.matches("<circle").count(), 2, "{svg}");
     assert!(!svg.contains("<text"), "nothing is drawn in a font: {svg}");
+}
+
+#[test]
+fn a_row_of_only_spans_draws_nothing() {
+    let width = NonZeroUsize::new(4).expect("a positive width");
+    let span = Span::try_new(width).expect("a width within the limit");
+    let svg = render_default(&Chart::new(vec![BarRow::new(vec1![span]).into()]));
+    assert!(polygons(&svg).is_empty(), "{svg}");
+    assert!(!svg.contains("<text") && !svg.contains("<circle"), "{svg}");
 }
 
 #[test]

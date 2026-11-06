@@ -243,11 +243,40 @@ A bar holds either slots or a repeat:
   its chords like `| Am Dm |`. Slots after the last chord count too:
   `| Bo / Do7 / |` has Do7 on beat 3, while `| Bo / Do7 |` splits the bar in
   thirds.
-- `%` repeats the previous bar in the chart, even in an earlier row: text
-  lines and page breaks in between are skipped.
+- `%` repeats the previous bar in the chart, even in an earlier row: spans,
+  text lines and page breaks in between are skipped.
 - Spaces around `|` are optional: `|Am|G|` is the same as `| Am | G |`. An
   empty bar needs at least one space, `| |`: `||` is reserved for the planned
   double bar line.
+
+### Spans
+
+A span, `{n}` alone between two `|`, keeps the room of `n` bars empty: no
+chords and no bar lines. It lines a short row up with the rows around it:
+
+```
+| Am | Dm | G7 | C |
+| {2} | F | E7 |
+```
+
+draws F and E7 under G7 and C. A span may stand at the start, in the middle
+or at the end of a row, and a row may be nothing but spans, which draws as an
+empty row and is spaced like any other bar row.
+
+- `n` is a whole number of bars, from 1 to 16: `{1}` for one bar. Spaces
+  inside the braces are optional, `{ 2 }` is `{2}`.
+- A row is as wide as its bars plus the bars its spans stand for:
+  `| {2} | F | E7 |` is a four-bar row.
+- Bar lines are drawn only next to bars: `| Am | {2} | C |` has two separate
+  bars with their own bar lines and empty room between them.
+
+These are errors:
+
+- a span without a width or with one that is not a whole number from 1 to
+  16: `{}`, `{two}`, `{0}`, `{-1}`, `{17}`
+- text in a span, e.g. `{2 Fine}`: reserved for spans that carry text
+- a span sharing its bar with anything else, e.g. `| {2} Am |`, a `{`
+  without its `}`, and a `}` without its `{`
 
 Making musical sense is up to the author: whatever can be drawn is drawn as
 written. An empty bar (`| |`), a bar starting with `_` or `/`, and `%` or `/`
@@ -266,8 +295,8 @@ with nothing before them to continue are all drawn. These are errors:
 
 Bar rows are drawn in the style of iReal Pro:
 
-- A row spans the page between its margins, and its bars split that width
-  evenly. Rows with the same number of bars line up.
+- A row spans the page between its margins, and its bars and spans split that
+  width evenly by bar. Rows as wide as each other line up.
 - A chord or `/` starts a little after the start of its slot, so a beat lands
   at the same place in every bar with as many slots. `%` is drawn as the
   one-bar repeat sign, centered in its bar.
@@ -294,14 +323,12 @@ Bar rows are drawn in the style of iReal Pro:
 
 In rough order:
 
-1. Spans: invisible bars for alignment, written with a width, e.g.
-   `{2} | F | E7 |` puts two bars under the last two of a four-bar row above.
-   Spans may later carry text, left, centered, or right aligned. The syntax is
-   not settled.
-2. Repeat signs (`|:`, `:|`, `:|:`), double (`||`) and final bar lines.
-3. Endings (`1.`, `2.`) and repeat counts.
-4. Lyrics and other symbols (dynamics, fermatas) in their own rows, aligned
+1. Repeat signs (`|:`, `:|`, `:|:`), double (`||`) and final bar lines.
+2. Endings (`1.`, `2.`) and repeat counts.
+3. Lyrics and other symbols (dynamics, fermatas) in their own rows, aligned
    with the bars and chords.
+4. Text in spans, left, centered, or right aligned, after the width:
+   `{2 D.C. al Coda}`.
 
 ### Ideas from chordsheet.com
 
@@ -580,7 +607,9 @@ plain_char   = any character except "*", "_", "<", ">", "[", "]", NEWLINE
 
 NEWLINE      = "\r\n" | "\n" | "\r" | VT | FF | NEL | LS | PS
 
-bar_row      = "|" ( WS* bar WS* "|" )+ WS*
+bar_row      = "|" ( WS* cell WS* "|" )+ WS*
+cell         = span | bar
+span         = "{" WS* [0-9]+ WS* "}"           # 1 to 16
 bar          = "%" | slot ( WS+ slot )* | WS    # WS alone: an empty bar
 slot         = chord | "_" | "/"
 WS           = SP | TAB

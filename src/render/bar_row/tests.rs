@@ -1,5 +1,6 @@
 use super::*;
-use crate::model::{Chord, ChordQuality, Letter, Note};
+use crate::model::{Cell, Chord, ChordQuality, Letter, Note, Span};
+use std::num::NonZeroUsize;
 use vec1::Vec1;
 
 const SIZE: f64 = 20.0;
@@ -26,8 +27,19 @@ fn slots(slots: Vec<Slot>) -> Bar {
 
 /// The marks of a row of `bars` drawn from 0 to `width`.
 fn marks(bars: Vec<Bar>, width: f64) -> Vec<Mark> {
-    let row = BarRow::new(Vec1::try_from_vec(bars).expect("at least one bar"));
+    cell_marks(bars.into_iter().map(Cell::from).collect(), width)
+}
+
+fn cell_marks(cells: Vec<Cell>, width: f64) -> Vec<Mark> {
+    let row = BarRow::new(Vec1::try_from_vec(cells).expect("at least one cell"));
     layout(&row, &style(), 0.0, width, BOTTOM)
+}
+
+fn span(width: usize) -> Cell {
+    let width = NonZeroUsize::new(width).expect("a positive width");
+    Span::try_new(width)
+        .expect("a width within the limit")
+        .into()
 }
 
 /// Where each bar line is.
@@ -76,6 +88,22 @@ fn a_row_is_its_chords_and_a_hanging_bass_tall() {
 fn bars_split_the_row_evenly_between_bar_lines() {
     let marks = marks(vec![slots(vec![]), Bar::Repeat, slots(vec![])], 300.0);
     assert_eq!(bar_lines(&marks), [0.0, 100.0, 200.0, 300.0]);
+}
+
+#[test]
+fn spans_take_room_without_bar_lines_of_their_own() {
+    let bar = || Cell::from(slots(vec![chord(Letter::C, None)]));
+    let leading = cell_marks(vec![span(2), bar(), bar()], 400.0);
+    assert_eq!(bar_lines(&leading), [200.0, 300.0, 400.0]);
+    assert_eq!(chords(&leading)[0].0, 200.0 + INSET * SIZE);
+
+    let between = cell_marks(vec![bar(), span(1), bar(), span(1)], 400.0);
+    assert_eq!(bar_lines(&between), [0.0, 100.0, 200.0, 300.0]);
+
+    assert!(
+        cell_marks(vec![span(3)], 300.0).is_empty(),
+        "nothing to draw"
+    );
 }
 
 #[test]

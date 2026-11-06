@@ -1,4 +1,4 @@
-//! Bar rows: `| Am _ _ A7 | % | G |`.
+//! Bar rows: `| {2} | Am _ _ A7 | % | G |`.
 //!
 //! The row is split at its `|`s first, and only then are each bar's words
 //! checked. So `||`, `| % Am |`, or `Am_G` each gets one specific message
@@ -6,11 +6,13 @@
 
 use super::Extra;
 use super::symbol::{parse_symbol, shifted};
-use crate::model::{Bar, BarRow, Chord, Slot, is_displayable};
+use crate::model::{Bar, BarRow, Cell, Chord, Slot, is_displayable};
 use chumsky::input::Emitter;
 use chumsky::prelude::*;
 use chumsky::text::Char;
 use vec1::Vec1;
+
+mod span;
 
 /// A line of bars. Never fails once the first `|` is read: problems are
 /// reported, and the parse fails at the end either way, but the rest of the
@@ -49,13 +51,13 @@ fn checked_row<'a>(
     let (after_last, bars) = segments
         .split_last()
         .expect("a row has at least one segment");
-    let bars = bars
+    let cells = bars
         .iter()
         .map(|segment| {
             if has_bad_characters(segment, emitter) {
-                Bar::Slots(Vec::new())
+                Bar::Slots(Vec::new()).into()
             } else {
-                checked_bar(segment, emitter)
+                checked_cell(segment, emitter)
             }
         })
         .collect();
@@ -67,7 +69,7 @@ fn checked_row<'a>(
             "a bar row ends with `|`: close the last bar, or remove what follows it",
         ));
     }
-    Vec1::try_from_vec(bars)
+    Vec1::<Cell>::try_from_vec(cells)
         .map(BarRow::new)
         .unwrap_or_else(|_| {
             if !trailing {
@@ -78,6 +80,19 @@ fn checked_row<'a>(
             }
             BarRow::new(Vec1::new(Bar::Slots(Vec::new())))
         })
+}
+
+/// The cell written in `segment`: a span, or a bar.
+fn checked_cell<'a>(segment: &Segment<'a>, emitter: &mut Emitter<Rich<'a, char>>) -> Cell {
+    if segment
+        .text
+        .trim_start_matches(is_separator)
+        .starts_with('{')
+    {
+        span::checked_span(segment, emitter)
+    } else {
+        checked_bar(segment, emitter).into()
+    }
 }
 
 /// Report every character in `segment` that a bar row cannot hold: unprintable
@@ -169,6 +184,12 @@ fn checked_slot<'a>(
 fn slot_problem(word: &str) -> Option<String> {
     if word.starts_with(':') || word.ends_with(':') {
         return Some("repeat signs (`|:` and `:|`) are not supported yet".to_string());
+    }
+    if word.contains('{') {
+        return Some("a span stands alone between two `|`, e.g. `| {2} | Am |`".to_string());
+    }
+    if word.contains('}') {
+        return Some("`}` closes a span, which starts with `{`, e.g. `| {2} | Am |`".to_string());
     }
     if word.contains('_') {
         return Some(unspaced_slots(word));

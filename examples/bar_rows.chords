@@ -1,5 +1,5 @@
 // Bar rows: equal-width bars, slots, holds, beat slashes, hanging bass,
-// squeezed chords, and the one-bar repeat.
+// squeezed chords, the one-bar repeat, and spans.
 === <Bar Rows>
 = <Verse 1>
 - Keyboard only
@@ -13,3 +13,8 @@
 | A B C D E F G A | Cm7 Fm7 Bb7 Eb^7 | % | Ab^7 |
 - Text after bars
 | C | F | G | C | Am | Dm | G7 | C |
+= Spans
+| Am | Dm | G7 | C |
+| {2} | F | E7 |
+| Am | {2} | C |
+| Dm7 | G7 | {2} |

@@ -1,34 +1,19 @@
 use super::directives::kinds;
 use super::{assert_errors, error_report, parse_chart};
-use crate::model::{Bar, Block, Slot};
+use crate::model::{Block, Cell};
 
-/// Each bar of each row in `input`, written back as its slots separated by
-/// single spaces, or `%`.
+/// Each cell of each row in `input`, written back: a bar as its slots
+/// separated by single spaces, or `%`, and a span as `{n}`.
 fn rows(input: &str) -> Vec<Vec<String>> {
     let chart = parse_chart(input).unwrap_or_else(|e| panic!("{input:?} should parse: {e}"));
     chart
         .blocks
         .iter()
         .filter_map(|block| match block {
-            Block::Bars(row) => Some(row.bars.iter().map(written).collect()),
+            Block::Bars(row) => Some(row.cells.iter().map(Cell::to_string).collect()),
             _ => None,
         })
         .collect()
-}
-
-fn written(bar: &Bar) -> String {
-    match bar {
-        Bar::Repeat => "%".to_string(),
-        Bar::Slots(slots) => slots
-            .iter()
-            .map(|slot| match slot {
-                Slot::Chord(chord) => chord.to_string(),
-                Slot::Hold => "_".to_string(),
-                Slot::Slash => "/".to_string(),
-            })
-            .collect::<Vec<_>>()
-            .join(" "),
-    }
 }
 
 #[test]
@@ -49,6 +34,53 @@ fn spaces_around_bar_lines_are_optional() {
 #[test]
 fn musical_nonsense_is_accepted() {
     assert_eq!(rows("| % | _ B _ _ | | / |"), [["%", "_ B _ _", "", "/"]]);
+}
+
+#[test]
+fn spans_stand_anywhere_in_a_row() {
+    assert_eq!(
+        rows("| {2} | F | E7 |\n| Dm7 |{1}| G7 |\n|C| { 12 } |"),
+        [
+            vec!["{2}", "F", "E7"],
+            vec!["Dm7", "{1}", "G7"],
+            vec!["C", "{12}"]
+        ]
+    );
+    assert_eq!(
+        rows("| {4} |"),
+        [["{4}"]],
+        "a row of only spans is drawn empty"
+    );
+}
+
+#[test]
+fn bad_spans_are_one_error_each() {
+    for (input, message) in [
+        (
+            "| {} |",
+            "a span's width is a whole number of bars, e.g. `{2}`",
+        ),
+        ("| {two} |", "a span's width is a whole number"),
+        ("| {-1} |", "a span's width is a whole number"),
+        ("| {0} |", "a span is at least one bar wide, e.g. `{1}`"),
+        ("| {2 Fine} |", "text in spans is not supported yet"),
+        ("| {2 |", "a span ends with `}`, e.g. `{2}`"),
+        ("| {2} Am |", "a span stands alone between two `|`"),
+        ("| Am {2} |", "a span stands alone between two `|`"),
+        ("| {17} |", "a span is at most 16 bars wide"),
+        (
+            "| {18446744073709551615} |",
+            "a span is at most 16 bars wide",
+        ),
+        (
+            "| {99999999999999999999} |",
+            "a span is at most 16 bars wide",
+        ),
+        ("| Am} |", "`}` closes a span, which starts with `{`"),
+        ("| C{2} |", "a span stands alone between two `|`"),
+    ] {
+        assert_errors(input, &[message]);
+    }
 }
 
 #[test]
@@ -145,4 +177,6 @@ fn errors_point_into_the_bar() {
     assert!(report.contains(":1:11"), "{report}");
     let report = error_report("| Am || G |");
     assert!(report.contains(":1:6"), "{report}");
+    let report = error_report("| Am |  {0} |");
+    assert!(report.contains(":1:9"), "{report}");
 }
