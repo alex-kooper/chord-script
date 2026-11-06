@@ -47,9 +47,7 @@ impl Default for LayoutConfig {
 ///
 /// A bar row's box runs from the top of its bar lines down past them, by the
 /// room it keeps for a hanging bass. It is kept apart from its neighbours
-/// like a line is (see [`FontStyle`]), except a text line right after it:
-/// that line ignores `below` and keeps only the text's `above` from the bar
-/// lines, reaching up into the room for the bass.
+/// like a line is; see [`FontStyle`].
 #[derive(Debug, Clone)]
 pub struct BarRowStyle {
     /// The font size of the chords; everything else in a bar row, from the
@@ -107,17 +105,16 @@ impl Default for RenderConfig {
         };
 
         // A header keeps more space above it than below, so it reads with
-        // what follows it. Each level's `below` leaves about the same space
-        // under its descenders.
+        // what follows it.
         Self {
             layout: LayoutConfig::default(),
             // The generic fallback keeps SVG viewers without Noto Sans on a
             // sans-serif font; they would otherwise default to a serif one.
             font_family: format!("{}, sans-serif", super::fonts::FAMILY),
-            header1: regular(29.0, 17.0, 14.0),
-            header2: regular(22.0, 16.0, 12.0),
-            header3: regular(18.0, 13.0, 11.0),
-            text: regular(16.0, 10.5, 10.0),
+            header1: regular(36.0, 21.0, 17.4),
+            header2: regular(32.0, 23.3, 17.5),
+            header3: regular(30.0, 21.7, 18.3),
+            text: regular(20.0, 10.0, 10.5),
             bar_row: BarRowStyle::default(),
         }
     }

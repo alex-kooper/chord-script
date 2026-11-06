@@ -1,13 +1,11 @@
 // Bar rows: equal-width bars, slots, holds, beat slashes, hanging bass,
 // squeezed chords, and the one-bar repeat.
 === <Bar Rows>
-=== 
-== <Verse 1>
-= Generated on Oct 27
+= <Verse 1>
 - Keyboard only
 | Am7 | Dm7 | G7 | C^7           |
 | F^7 | Bh7 | E7 | Am6 _ A7/C# _ |
-== <Verse 2>
+= Verse 2
 | Bbm7b5 | Eb7(#11) | Am7/G | % |
 - Rubato
 | Am _ _ A7 | / / / Dm | Bo / Do7 / | |

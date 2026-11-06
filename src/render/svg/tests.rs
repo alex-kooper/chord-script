@@ -146,7 +146,8 @@ fn test_header_styling() {
 
     assert!(svg.contains("font-family=\"Noto Sans, sans-serif\""));
     assert!(svg.contains("font-weight=\"normal\""));
-    assert!(svg.contains("font-size=\"29\""));
+    let size = RenderConfig::default().header1.size;
+    assert!(svg.contains(&format!("font-size=\"{size}\"")));
 }
 
 #[test]
