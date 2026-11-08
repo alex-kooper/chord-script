@@ -1,5 +1,6 @@
 //! Errors that stop a chart from being rendered, in any output format.
 
+use super::bar_row::Cramped;
 use super::inline::typed_text;
 use super::{BarRowStyle, FontStyle};
 use crate::model::{BarRow, Line, LineLevel};
@@ -19,6 +20,17 @@ pub enum RenderError {
         row: String,
         height: f64,
         available: f64,
+    },
+
+    /// A bar row has too many bars, or a bar too many slots, for the page's
+    /// width: a chord would be squeezed too narrow to read, or the bar lines
+    /// around a bar would run into each other.
+    #[error("{row} is too cramped to draw {what}: give it fewer bars, or its bars fewer slots")]
+    CrampedBarRow {
+        /// A short description of the row, for the message
+        row: String,
+        /// What has too little room: a chord, or the row's bar lines
+        what: String,
     },
 
     /// The configured page cannot exist, e.g. it has zero or negative width.
@@ -97,9 +109,19 @@ impl RenderError {
 
     pub(super) fn bar_row_taller_than_page(row: &BarRow, height: f64, available: f64) -> Self {
         Self::RowTallerThanPage {
-            row: format!("bar row \"{}\"", preview(&row.to_string())),
+            row: describe_bar_row(row),
             height,
             available,
+        }
+    }
+
+    pub(super) fn cramped_bar_row(row: &BarRow, cramped: Cramped<'_>) -> Self {
+        Self::CrampedBarRow {
+            row: describe_bar_row(row),
+            what: match cramped {
+                Cramped::BarLines => "its bar lines".to_string(),
+                Cramped::Chord(chord) => format!("`{chord}`"),
+            },
         }
     }
 
@@ -126,6 +148,10 @@ fn describe(line: &Line) -> String {
         return format!("an empty {:?} line", line.level);
     }
     format!("line \"{}\"", preview(&text))
+}
+
+fn describe_bar_row(row: &BarRow) -> String {
+    format!("bar row \"{}\"", preview(&row.to_string()))
 }
 
 /// The start of `text`, with an ellipsis if it is cut off.

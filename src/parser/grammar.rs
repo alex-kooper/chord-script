@@ -75,6 +75,7 @@ fn line_content<'a>() -> impl Parser<'a, &'a str, Option<Block>, Extra<'a>> {
     line_parser()
         .map(|line| Some(Block::Text(line)))
         .or(bar_row::bar_row().map(|row| Some(Block::Bars(row))))
+        .or(bar_row::row_starting_with_repeat_end().to(None))
         .or(directive::directive())
         .or(directive::comment().to(None))
 }

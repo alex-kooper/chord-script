@@ -3,12 +3,14 @@
 use derive_more::From;
 
 mod bar;
+mod bar_line;
 mod chord;
 mod inline;
 mod line;
 mod note;
 
-pub use bar::{Bar, BarRow, Cell, Slot, Span};
+pub use bar::{Bar, BarRow, Cell, Entry, Slot, Span};
+pub use bar_line::BarLine;
 pub use chord::{Chord, ChordQuality, ChordQualityError, is_quality_char};
 pub use inline::{Content, Inline, InlineText, InlineTextError, TextStyle, is_displayable};
 pub use line::{Line, LineLevel};
@@ -37,7 +39,8 @@ impl Chart {
 pub enum Block {
     /// A line of text
     Text(Line),
-    /// A row of bars (`| Am | G |`), and spans standing in for bars (`{2}`)
+    /// A row of bars (`| Am | G |`), and spans standing in for bars (`{2}`),
+    /// between bar lines (`||:`, `:||`, …)
     Bars(BarRow),
     /// An explicit request for a new page (`#page_break`)
     #[from(skip)]

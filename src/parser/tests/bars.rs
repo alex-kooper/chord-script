@@ -1,6 +1,6 @@
 use super::directives::kinds;
 use super::{assert_errors, error_report, parse_chart};
-use crate::model::{Block, Cell};
+use crate::model::Block;
 
 /// Each cell of each row in `input`, written back: a bar as its slots
 /// separated by single spaces, or `%`, and a span as `{n}`.
@@ -10,7 +10,7 @@ fn rows(input: &str) -> Vec<Vec<String>> {
         .blocks
         .iter()
         .filter_map(|block| match block {
-            Block::Bars(row) => Some(row.cells.iter().map(Cell::to_string).collect()),
+            Block::Bars(row) => Some(row.cells.iter().map(|e| e.cell.to_string()).collect()),
             _ => None,
         })
         .collect()
@@ -101,15 +101,13 @@ fn bar_rows_sit_between_other_lines() {
 #[test]
 fn bad_bars_are_one_error_each() {
     for (input, message) in [
-        ("| Am || G |", "`||` is reserved for double bar lines"),
-        ("|| Am |", "write `| |` for an empty bar"),
         ("| % Am |", "`%` repeats a whole bar, so it stands alone"),
         ("| Am %|", "`%` repeats a whole bar"),
         (
             "| Am | G",
-            "a bar row ends with `|`: close the last bar, or remove what follows it",
+            "a bar row ends with a bar line: close the last bar, or remove what follows it",
         ),
-        ("| Am | G | x2", "a bar row ends with `|`"),
+        ("| Am | G | x2", "a bar row ends with a bar line"),
         ("|", "a bar row needs at least one bar"),
         ("|  ", "a bar row needs at least one bar"),
     ] {
@@ -128,12 +126,6 @@ fn bad_slots_are_one_error_each() {
         ("| Am_ |", "separate slots with spaces: `Am _`"),
         ("| __ |", "separate slots with spaces: `_ _`\n"),
         ("| am |", "`am` is not a chord, `_`, `/` or `%`"),
-        (
-            "| Am :|",
-            "repeat signs (`|:` and `:|`) are not supported yet",
-        ),
-        ("|: Am |", "repeat signs"),
-        ("|:Am | G |", "repeat signs"),
         ("| Am* |", "`*` follows `Am`: a bar holds chords"),
         ("| Am/ |", "for a beat slash, put a space before it: `Am /`"),
         ("| Cbb5 |", "double accidentals"),
@@ -175,8 +167,6 @@ fn every_bad_slot_is_reported() {
 fn errors_point_into_the_bar() {
     let report = error_report("| Am | C/E7 |");
     assert!(report.contains(":1:11"), "{report}");
-    let report = error_report("| Am || G |");
-    assert!(report.contains(":1:6"), "{report}");
     let report = error_report("| Am |  {0} |");
     assert!(report.contains(":1:9"), "{report}");
 }

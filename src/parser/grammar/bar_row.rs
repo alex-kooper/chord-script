@@ -1,57 +1,73 @@
-//! Bar rows: `| {2} | Am _ _ A7 | % | G |`.
+//! Bar rows: `||: {2} | Am _ _ A7 | % :||`.
 //!
-//! The row is split at its `|`s first, and only then are each bar's words
-//! checked. So `||`, `| % Am |`, or `Am_G` each gets one specific message
-//! rather than whatever the grammar happened to expect where it stopped.
+//! The row is split at its bar lines first, and only then are each bar's
+//! words checked. So `|:`, `| % Am |`, or `Am_G` each gets one specific
+//! message rather than whatever the grammar happened to expect where it
+//! stopped.
 
 use super::Extra;
 use super::symbol::{parse_symbol, shifted};
-use crate::model::{Bar, BarRow, Cell, Chord, Slot, is_displayable};
+use crate::model::{Bar, BarLine, BarRow, Cell, Chord, Entry, Slot, is_displayable};
+use bar_line::Split;
 use chumsky::input::Emitter;
 use chumsky::prelude::*;
 use chumsky::text::Char;
 use vec1::Vec1;
 
+mod bar_line;
 mod span;
 
 /// A line of bars. Never fails once the first `|` is read: problems are
 /// reported, and the parse fails at the end either way, but the rest of the
 /// chart is still checked.
 pub(super) fn bar_row<'a>() -> impl Parser<'a, &'a str, BarRow, Extra<'a>> {
-    let segment = any()
-        .filter(|c: &char| *c != '|' && !c.is_newline())
-        .repeated()
-        .to_slice()
-        .map_with(|text: &str, e| Segment {
-            text,
-            span: e.span(),
-        });
-
     just('|')
-        .ignore_then(segment.separated_by(just('|')).at_least(1).collect())
-        .validate(|segments: Vec<Segment<'a>>, e, emitter| {
-            checked_row(&segments, e.span(), emitter)
+        .then(any().filter(|c: &char| !c.is_newline()).repeated())
+        .to_slice()
+        .validate(|text: &str, e, emitter| checked_row(text, e.span(), emitter))
+}
+
+/// A line starting with `:|`, like a row opened by a repeat end. It is
+/// reported, since a bar row starts with `|`: a repeat ends at the end of the
+/// row before.
+pub(super) fn row_starting_with_repeat_end<'a>() -> impl Parser<'a, &'a str, (), Extra<'a>> {
+    just(":|")
+        .then(any().filter(|c: &char| !c.is_newline()).repeated())
+        .to_slice()
+        .validate(|text: &str, e, emitter| {
+            let span: SimpleSpan = e.span();
+            let start = span.start;
+            emitter.emit(Rich::custom(
+                SimpleSpan::from(start..start + bar_line::line_len(text)),
+                "a bar row starts with `|`: end the repeat at the end of the row before, e.g. `| C :||`",
+            ));
         })
 }
 
-/// The text between two `|`s, or after the last one.
+/// A piece of a row's text: a bar line, the text between two of them, or what
+/// follows the last.
 #[derive(Debug, Clone, Copy)]
 struct Segment<'a> {
     text: &'a str,
     span: SimpleSpan,
 }
 
-/// The row read from `segments`: every one but the last is a bar, and the
-/// last, after the final `|`, must be blank.
+/// The row written as `text`: every segment between two bar lines is a cell,
+/// and the one after the last bar line must be blank.
 fn checked_row<'a>(
-    segments: &[Segment<'a>],
+    text: &'a str,
     row: SimpleSpan,
     emitter: &mut Emitter<Rich<'a, char>>,
 ) -> BarRow {
-    let (after_last, bars) = segments
+    let Split { lines, segments } = bar_line::split(text, row.start);
+    let (after_last, cells) = segments
         .split_last()
-        .expect("a row has at least one segment");
-    let cells = bars
+        .expect("a row has a segment after each bar line");
+    let bar_lines: Vec<BarLine> = lines
+        .iter()
+        .map(|line| bar_line::checked_line(line, emitter))
+        .collect();
+    let cells = cells
         .iter()
         .map(|segment| {
             if has_bad_characters(segment, emitter) {
@@ -61,25 +77,45 @@ fn checked_row<'a>(
             }
         })
         .collect();
-    let trailing_reported = has_bad_characters(after_last, emitter);
+    let trailing = has_trailing_text(after_last, emitter);
+    let Some(checked) = assembled(&bar_lines, cells) else {
+        if !trailing {
+            emitter.emit(Rich::custom(
+                row,
+                "a bar row needs at least one bar, e.g. `| Am | G |`",
+            ));
+        }
+        return BarRow::new(Vec1::new(Bar::Slots(Vec::new())));
+    };
+    bar_line::report_split_repeats(&bar_lines, &lines, &segments, emitter);
+    bar_line::report_lines_without_bars(&checked, &lines, emitter);
+    checked
+}
+
+/// Whether anything but spaces follows the row's last bar line. Reports it.
+fn has_trailing_text<'a>(after_last: &Segment<'a>, emitter: &mut Emitter<Rich<'a, char>>) -> bool {
+    let reported = has_bad_characters(after_last, emitter);
     let trailing = !after_last.text.trim_matches(is_separator).is_empty();
-    if trailing && !trailing_reported {
+    if trailing && !reported {
         emitter.emit(Rich::custom(
             trimmed(after_last),
-            "a bar row ends with `|`: close the last bar, or remove what follows it",
+            "a bar row ends with a bar line: close the last bar, or remove what follows it",
         ));
     }
-    Vec1::<Cell>::try_from_vec(cells)
-        .map(BarRow::new)
-        .unwrap_or_else(|_| {
-            if !trailing {
-                emitter.emit(Rich::custom(
-                    row,
-                    "a bar row needs at least one bar, e.g. `| Am | G |`",
-                ));
-            }
-            BarRow::new(Vec1::new(Bar::Slots(Vec::new())))
-        })
+    trailing
+}
+
+/// The row of `cells` between `lines`, one more of them than cells, if it has
+/// any cells.
+fn assembled(lines: &[BarLine], cells: Vec<Cell>) -> Option<BarRow> {
+    let (&start, ends) = lines.split_first()?;
+    let entries = cells
+        .into_iter()
+        .zip(ends)
+        .map(|(cell, &end)| Entry { cell, end })
+        .collect();
+    let cells = Vec1::try_from_vec(entries).ok()?;
+    Some(BarRow { start, cells })
 }
 
 /// The cell written in `segment`: a span, or a bar.
@@ -129,14 +165,6 @@ fn is_separator(c: char) -> bool {
 /// The bar written in `segment`: `%` alone, or slots separated by spaces.
 fn checked_bar<'a>(segment: &Segment<'a>, emitter: &mut Emitter<Rich<'a, char>>) -> Bar {
     let Segment { text, span } = *segment;
-    if text.is_empty() {
-        emitter.emit(Rich::custom(
-            SimpleSpan::from(span.start - 1..span.end + 1),
-            "`||` is reserved for double bar lines: write `| |` for an empty bar",
-        ));
-        return Bar::Slots(Vec::new());
-    }
-
     let words = words(text);
     if words.iter().any(|&(_, word)| word == "%") {
         if words.len() > 1 {
@@ -182,8 +210,10 @@ fn checked_slot<'a>(
 /// What is wrong with `word`, which is not `_` or `/`, if it can be told
 /// without reading it as a chord.
 fn slot_problem(word: &str) -> Option<String> {
-    if word.starts_with(':') || word.ends_with(':') {
-        return Some("repeat signs (`|:` and `:|`) are not supported yet".to_string());
+    if word.contains(':') {
+        return Some(
+            "a repeat sign's `:` stands against its bar line, e.g. `||: Am :||`".to_string(),
+        );
     }
     if word.contains('{') {
         return Some("a span stands alone between two `|`, e.g. `| {2} | Am |`".to_string());

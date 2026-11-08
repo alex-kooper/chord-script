@@ -1,6 +1,9 @@
 use super::{baseline_of, chart_of, close, left_line, text_cap_height};
-use crate::model::{Block, Chart, Inline, LineLevel};
+use crate::model::{
+    Bar, BarLine, BarRow, Block, Chart, Chord, Inline, Letter, LineLevel, Note, Slot,
+};
 use crate::render::{FontStyle, LayoutConfig, RenderConfig, RenderError, SvgGenerator};
+use vec1::Vec1;
 
 fn text(content: &str) -> Block {
     left_line(LineLevel::Text, vec![Inline::plain(content)]).into()
@@ -38,6 +41,32 @@ fn render_fails_when_a_line_cannot_fit_on_any_page() {
         matches!(error, RenderError::RowTallerThanPage { .. }),
         "{error:?}"
     );
+}
+
+#[test]
+fn render_fails_when_a_bar_row_is_too_cramped_to_read() {
+    let bar = || {
+        Bar::Slots(vec![Slot::Chord(Chord::new(
+            Note::natural(Letter::C),
+            None,
+            None,
+        ))])
+    };
+    let mut row = BarRow::new(Vec1::from_vec_push(vec![bar(); 15], bar()));
+    row.start = BarLine::RepeatStart;
+    for entry in row.cells.iter_mut() {
+        entry.end = BarLine::RepeatBoth;
+    }
+    let chart = Chart::new(vec![row.into()]);
+    let error = SvgGenerator::with_defaults()
+        .render(&chart)
+        .expect_err("16 bars between repeat signs leave the chords no room");
+    let RenderError::CrampedBarRow { row, what } = &error else {
+        panic!("{error:?}");
+    };
+    assert!(row.starts_with("bar row \"||: C :||: C"), "{row}");
+    assert_eq!(what, "`C`");
+    assert!(error.to_string().contains("give it fewer bars"), "{error}");
 }
 
 #[test]

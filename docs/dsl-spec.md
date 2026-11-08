@@ -212,12 +212,12 @@ The brackets hold exactly one chord symbol and nothing else, not even spaces:
 
 Bars with chords are the heart of a chart, as in iReal Pro or chordsheet.com.
 A bar row starts with `|` and is one row of the chart's grid: every bar stands
-between two `|`, and the row is drawn as bars of equal width, as many as it
-has.
+between two bar lines, and the row is drawn as bars of equal width, as many as
+it has.
 
 ```
-| Am _ _ A7 | Dm | G7 | C |
-| % | % | G G7 | C |
+||: Am _ _ A7 | Dm | G7 | C |
+| % | % | G G7 | C :||
 ```
 
 A bar holds either slots or a repeat:
@@ -245,9 +245,48 @@ A bar holds either slots or a repeat:
   thirds.
 - `%` repeats the previous bar in the chart, even in an earlier row: spans,
   text lines and page breaks in between are skipped.
-- Spaces around `|` are optional: `|Am|G|` is the same as `| Am | G |`. An
-  empty bar needs at least one space, `| |`: `||` is reserved for the planned
+- Spaces around bar lines are optional: `|Am|G|` is the same as
+  `| Am | G |`. An empty bar needs at least one space, `| |`, since `||` is a
   double bar line.
+
+### Bar Lines
+
+Every bar line is drawn the way it looks: one stroke for a plain bar line,
+two for the rest.
+
+| Bar line | Meaning | Drawn as |
+|----------|---------|----------|
+| `\|` | A bar line | A thin line |
+| `\|\|` | A section starts or ends | Two thin lines |
+| `\|\|\|` | The piece ends | A thin and a thick line |
+| `\|\|:` | A repeat starts | A thick and a thin line, then two dots |
+| `:\|\|` | A repeat ends | Two dots, then a thin and a thick line |
+| `:\|\|:` | One repeat ends, the next starts | Two dots each side of a thin, a thick and a thin line |
+
+```
+|| Am | Dm | G7 | C ||
+||: F | E7 :||: Am | % :||
+| Dm7 | G7 | C | % |||
+```
+
+- Any bar line may stand anywhere a `|` can: `||` opens a section at the
+  start of a row and closes one at its end. Only `:||` and `:||:` can't open a
+  row, which starts with `|`: end a repeat at the end of the row before.
+  Nothing is added for you: a `=` header doesn't put a `||` before the row
+  after it.
+- Rows don't share bar lines: a row ending with `||` and the next starting
+  with `||` both draw theirs.
+
+These are errors:
+
+- `|:`, `:|` and `:|:`: write `||:`, `:||` and `:||:`
+- any other run of `|` and `:`, e.g. `||||` or `|:|`
+- a `:` apart from its bar line, e.g. `| Am : |` or `| Am: |`
+- a bar line other than `|` with no bar on either side, e.g. between two
+  spans, `| {1} || {1} |`: it would not be drawn
+- an empty bar between a repeat end and a repeat start, `:|| ||:`: write
+  `:||:`
+- a line starting with `:||` or `:||:`
 
 ### Spans
 
@@ -282,13 +321,12 @@ Making musical sense is up to the author: whatever can be drawn is drawn as
 written. An empty bar (`| |`), a bar starting with `_` or `/`, and `%` or `/`
 with nothing before them to continue are all drawn. These are errors:
 
-- `||`, until double bar lines arrive: write `| |` for an empty bar
 - `%` with anything else in its bar, e.g. `| % Am |`
 - slots without spaces between them, e.g. `Am_G`: write `| Am G |` for two
   chords in one bar (chordsheet.com's `Am_G`), or `| Am _ G |` for three slots
-- anything in a bar that is not a chord, `_`, `/` or `%`, including the
-  planned repeat signs `|:` and `:|`
-- a row that doesn't end with `|`, and a `|` alone
+- anything in a bar that is not a chord, `_`, `/` or `%`
+- a row that doesn't end with a bar line, and a bar line alone, e.g. `|` or
+  `||`
 - unprintable characters, as in text, and spaces other than space and tab
 
 ### Drawing
@@ -303,9 +341,17 @@ Bar rows are drawn in the style of iReal Pro:
 - A chord may reach over the `_` slots after it. A chord too wide for the room
   before the next chord or `/` in its bar, or before the bar line, is squeezed
   horizontally to fit; its height stays the same. If a row looks cramped, give
-  it fewer bars.
+  it fewer bars. A row so cramped that a chord would be squeezed to under a
+  tenth of its width, or that the bar lines around a bar would run into each
+  other, is an error: the chart is not rendered.
 - The bass hangs below the root, a little to the right. Bar lines run from
   the top of the chords to about the middle of the bass.
+- A bar line other than `|` stands on its thick line, or on the inner line of
+  `||`, and takes some room from the bar it opens or closes: `||:` from the
+  bar after it, `||`, `|||` and `:||` from the bar before, `:||:` from both.
+  At the ends of a row it is pushed inward, its outer line on the margin.
+  The bar's slots split the room that is left, so beats in a bar next to one
+  sit a little apart from beats in plain bars.
 - Every bar row has the same height, with or without a bass, and keeps a
   little space above and below it. For more space between rows, add an empty
   line such as `==`.
@@ -323,11 +369,10 @@ Bar rows are drawn in the style of iReal Pro:
 
 In rough order:
 
-1. Repeat signs (`|:`, `:|`, `:|:`), double (`||`) and final bar lines.
-2. Endings (`1.`, `2.`) and repeat counts.
-3. Lyrics and other symbols (dynamics, fermatas) in their own rows, aligned
+1. Endings (`1.`, `2.`) and repeat counts.
+2. Lyrics and other symbols (dynamics, fermatas) in their own rows, aligned
    with the bars and chords.
-4. Text in spans, left, centered, or right aligned, after the width:
+3. Text in spans, left, centered, or right aligned, after the width:
    `{2 D.C. al Coda}`.
 
 ### Ideas from chordsheet.com
@@ -537,6 +582,17 @@ form visible in the source, give bar rows an unambiguous prefix, and keep `%`
 (repeat previous bar) inside a bar, where it can't be confused with anything
 at the start of a line.
 
+### Why `||:`, `:||` and `|||`?
+
+They look like what is drawn: the signs other than `|` have two lines, and
+so are written with two `|`. `||: … :||` is also how musicians write repeats
+by hand and in plain-text charts. ABC's `|:` and `:|` are shorter, but fewer
+readers know them, so they are errors that point to the longer spelling,
+keeping one spelling per sign. `|||` for the final bar line follows the
+count: one line for a bar, two for a section, three for the end. ABC's `|]`
+would look closer to the thick line, but keeps `[` and `]`, used for inline
+chords, out of bar rows and free for later.
+
 ### Why `_` and `/` inside bars?
 
 `_` holds the chord before it without drawing anything; it places chords that
@@ -607,7 +663,8 @@ plain_char   = any character except "*", "_", "<", ">", "[", "]", NEWLINE
 
 NEWLINE      = "\r\n" | "\n" | "\r" | VT | FF | NEL | LS | PS
 
-bar_row      = "|" ( WS* cell WS* "|" )+ WS*
+bar_row      = bar_line ( WS* cell WS* bar_line )+ WS*   # starting with "|"
+bar_line     = "|" | "||" | "|||" | "||:" | ":||" | ":||:"
 cell         = span | bar
 span         = "{" WS* [0-9]+ WS* "}"           # 1 to 16
 bar          = "%" | slot ( WS+ slot )* | WS    # WS alone: an empty bar

@@ -1,12 +1,15 @@
 //! How a bar row is laid out, whatever the output format.
 //!
 //! The row spans the page between its margins, split evenly into its bars and
-//! the bars its spans stand for, and each bar evenly into its slots. Only
-//! bars are drawn, with a bar line on each side. A chord or beat slash starts a little
-//! after the start of its slot, so a beat always lands at the same place in a
-//! bar; `%` is centered in its bar. A chord may reach over the empty slots
-//! after it, and one too wide for the room before the next thing drawn in its
-//! bar is squeezed horizontally to fit, keeping its height.
+//! the bars its spans stand for. Only bars are drawn, with a bar line on each
+//! side; a double or final line or a repeat sign takes some of a bar's room,
+//! and the rest is split evenly into its slots. A chord or beat slash starts a
+//! little after the start of its slot, so a beat lands at the same place in
+//! bars with as many slots, unless a sign beside one takes some of its room;
+//! `%` is centered in its bar. A chord may reach over the empty slots after
+//! it, and one too wide for the room before the next thing drawn in its bar
+//! is squeezed horizontally to fit, keeping its height. A row too cramped for
+//! that is reported instead.
 //!
 //! The row's box holds the chords, then the bass hanging below them. Bar
 //! lines run from the top of the box to about the middle of a hanging bass,
@@ -15,7 +18,11 @@
 use super::BarRowStyle;
 use super::chord::{self, BassPlacement, ChordLayout, Piece, Slash};
 use super::fonts::{self, Font};
-use crate::model::{Bar, BarRow, Slot};
+use crate::model::{Bar, BarRow, Cell, Chord, Slot};
+use bar_line::{Place, Sign};
+use std::iter;
+
+mod bar_line;
 
 /// Fractions of the chord size, set by eye after iReal Pro.
 ///
@@ -31,6 +38,9 @@ const BAR_LINE_WIDTH: f64 = 0.04;
 const INSET: f64 = 0.2;
 /// The least space left between a chord and what follows it in its bar.
 const CLEARANCE: f64 = 0.15;
+/// The narrowest a chord may be squeezed, as a fraction of its width: below
+/// that it can no longer be read, and the row is reported as too cramped.
+const MIN_SQUEEZE: f64 = 0.1;
 /// How far right a beat slash leans over its height.
 const SLASH_LEAN: f64 = 0.3;
 /// Between the stems of the root and of the smaller quality: a long diagonal
@@ -88,56 +98,86 @@ pub(crate) fn room_below_bar_lines(style: &BarRowStyle) -> f64 {
     (DESCENT - BAR_LINE_DROP) * style.chord_size
 }
 
+/// What in a bar row has too little room to be drawn between its margins.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(super) enum Cramped<'a> {
+    /// The bar lines on either side of a bar run into each other
+    BarLines,
+    /// A chord would be squeezed narrower than [`MIN_SQUEEZE`]
+    Chord(&'a Chord),
+}
+
 /// The marks of `row`, drawn between `left` and `right` in a row box whose
-/// bottom is at `bottom`.
-pub(super) fn layout(
-    row: &BarRow,
+/// bottom is at `bottom`, or what has too little room there.
+pub(super) fn layout<'a>(
+    row: &'a BarRow,
     style: &BarRowStyle,
     left: f64,
     right: f64,
     bottom: f64,
-) -> Vec<Mark> {
+) -> Result<Vec<Mark>, Cramped<'a>> {
     let size = style.chord_size;
     let baseline = bottom - DESCENT * size;
+    let signs = signs(row, left, right, baseline, size);
+    let room = |index: usize| {
+        signs[index]
+            .as_ref()
+            .expect("a bar has a bar line on each side")
+    };
+    let contents = row
+        .cells
+        .iter()
+        .enumerate()
+        .filter_map(|(index, entry)| match &entry.cell {
+            Cell::Bar(bar) => Some((index, bar)),
+            Cell::Span(_) => None,
+        })
+        .map(|(index, bar)| bar_marks(bar, room(index).right, room(index + 1).left, baseline, size))
+        .collect::<Result<Vec<_>, _>>()?;
+
+    let lines = signs.iter().flatten().flat_map(|sign| sign.marks.clone());
+    Ok(lines.chain(contents.into_iter().flatten()).collect())
+}
+
+/// Each bar line of `row` as drawn between `left` and `right`, in the order of
+/// [`BarRow::lines`]: `None` for one with no bar beside it, which is not drawn.
+fn signs(row: &BarRow, left: f64, right: f64, baseline: f64, size: f64) -> Vec<Option<Sign>> {
     let bar_width = (right - left) / row.width().get() as f64;
-    let x = |bars: usize| left + bars as f64 * bar_width;
-
-    let bars: Vec<(usize, &Bar)> = row.bars().collect();
-    // Bars side by side share the edge between them.
-    let mut edges: Vec<usize> = bars
-        .iter()
-        .flat_map(|&(start, _)| [start, start + 1])
-        .collect();
-    edges.dedup();
-
-    let bar_lines = edges
-        .into_iter()
-        .map(|edge| bar_line(x(edge), baseline, size));
-    let contents = bars
-        .iter()
-        .flat_map(|&(start, bar)| bar_marks(bar, x(start), x(start + 1), baseline, size));
-    bar_lines.chain(contents).collect()
+    let edges = iter::once(0).chain(row.cells.iter().scan(0, |at, entry| {
+        *at += entry.cell.width().get();
+        Some(*at)
+    }));
+    let last = row.cells.len();
+    row.lines()
+        .zip(edges)
+        .enumerate()
+        .map(|(index, (line, at))| {
+            let place = match index {
+                0 => Place::Start,
+                index if index == last => Place::End,
+                _ => Place::Inside,
+            };
+            let x = left + at as f64 * bar_width;
+            row.is_beside_bar(index)
+                .then(|| bar_line::sign(line, x, place, baseline, size))
+        })
+        .collect()
 }
 
-/// A bar line at `x`, from the top of the row's box into the bass.
-fn bar_line(x: f64, baseline: f64, size: f64) -> Mark {
-    Mark::Stroke {
-        from: Point {
-            x,
-            y: baseline - ASCENT * size,
-        },
-        to: Point {
-            x,
-            y: baseline + BAR_LINE_DROP * size,
-        },
-        width: BAR_LINE_WIDTH * size,
+/// The marks inside the bar from `start` to `end`, the room its bar lines
+/// leave it.
+fn bar_marks(
+    bar: &Bar,
+    start: f64,
+    end: f64,
+    baseline: f64,
+    size: f64,
+) -> Result<Vec<Mark>, Cramped<'_>> {
+    if end <= start {
+        return Err(Cramped::BarLines);
     }
-}
-
-/// The marks inside the bar from `start` to `end`.
-fn bar_marks(bar: &Bar, start: f64, end: f64, baseline: f64, size: f64) -> Vec<Mark> {
     let slots = match bar {
-        Bar::Repeat => return repeat_sign(start, end, baseline, size),
+        Bar::Repeat => return Ok(repeat_sign(start, end, baseline, size)),
         Bar::Slots(slots) => slots,
     };
     let slot_width = (end - start) / slots.len() as f64;
@@ -157,7 +197,10 @@ fn bar_marks(bar: &Bar, start: f64, end: f64, baseline: f64, size: f64) -> Vec<M
                 let ChordLayout { pieces, slash } =
                     chord::layout(symbol, Font::Chord, size, BassPlacement::Below);
                 let room = next - x - CLEARANCE * size;
-                let squeeze = (room.max(0.0) / chord::width(&pieces)).min(1.0);
+                let squeeze = (room / chord::width(&pieces)).min(1.0);
+                if squeeze.is_nan() || squeeze < MIN_SQUEEZE {
+                    return Err(Cramped::Chord(symbol));
+                }
                 Mark::Chord {
                     at,
                     size,
@@ -170,7 +213,7 @@ fn bar_marks(bar: &Bar, start: f64, end: f64, baseline: f64, size: f64) -> Vec<M
             Slot::Hold => unreachable!("holds are filtered out above"),
         });
     }
-    marks
+    Ok(marks)
 }
 
 /// A beat slash rising from `at` on the baseline to the height of the root.

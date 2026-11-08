@@ -3,22 +3,29 @@
 
 use super::line::{render_piece, rounded};
 use crate::model::{BarRow, TextStyle};
-use crate::render::RenderConfig;
 use crate::render::bar_row::{self, Mark, Point};
 use crate::render::chord::{Offset, Piece, Slash};
+use crate::render::{RenderConfig, RenderError, Result};
 use svg::Node;
 use svg::node::Blob;
 use svg::node::element::{Circle, Group, Polygon, Text as SvgText};
 
-/// Render a bar row whose box has its bottom edge at `bottom`.
-pub(super) fn render(row: &BarRow, config: &RenderConfig, bottom: f64) -> Vec<Box<dyn Node>> {
+/// Render a bar row whose box has its bottom edge at `bottom`. Fails if
+/// something in it has too little room between the page's margins.
+pub(super) fn render(
+    row: &BarRow,
+    config: &RenderConfig,
+    bottom: f64,
+) -> Result<Vec<Box<dyn Node>>> {
     let page = &config.layout;
     let left = page.margin_horizontal;
     let right = page.width - page.margin_horizontal;
-    bar_row::layout(row, &config.bar_row, left, right, bottom)
+    let marks = bar_row::layout(row, &config.bar_row, left, right, bottom)
+        .map_err(|cramped| RenderError::cramped_bar_row(row, cramped))?;
+    Ok(marks
         .iter()
         .map(|mark| render_mark(mark, &config.font_family))
-        .collect()
+        .collect())
 }
 
 fn render_mark(mark: &Mark, font_family: &str) -> Box<dyn Node> {

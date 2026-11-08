@@ -1,6 +1,7 @@
 use super::{ParseError, ReportStyle, parse_chart};
 use crate::model::{Block, Content, Inline, Line, LineLevel};
 
+mod bar_lines;
 mod bars;
 mod characters;
 mod chords;

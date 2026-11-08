@@ -45,16 +45,17 @@ impl SvgGenerator {
     /// Render a chart to SVG, one document per page.
     ///
     /// There is always at least one page; an empty chart renders as one blank
-    /// page. Fails if a row is too tall to fit on any page, or if a font or
-    /// chord size isn't a positive number or a space kept above or below rows
-    /// isn't a non-negative one.
+    /// page. Fails if a row is too tall to fit on any page, if a bar row is
+    /// too cramped to draw between the margins, or if a font or chord size
+    /// isn't a positive number or a space kept above or below rows isn't a
+    /// non-negative one.
     pub fn render(&self, chart: &Chart) -> Result<Vec<SvgPage>> {
         check_styles(&self.config)?;
         let pages = layout::paginate(&chart.blocks, &self.config.layout, &self.config)?;
-        Ok(pages.iter().map(|page| self.render_page(page)).collect())
+        pages.iter().map(|page| self.render_page(page)).collect()
     }
 
-    fn render_page(&self, page: &Page) -> SvgPage {
+    fn render_page(&self, page: &Page) -> Result<SvgPage> {
         let geometry = &self.config.layout;
 
         let document = Document::new()
@@ -65,21 +66,21 @@ impl SvgGenerator {
             .set("width", format!("{}pt", geometry.width))
             .set("height", format!("{}pt", geometry.height));
 
-        let document = page
-            .rows
-            .iter()
-            .flat_map(|placed| self.render_row(placed))
-            .fold(document, |document, element| document.add(element));
-
-        SvgPage(document.to_string())
+        let mut document = document;
+        for placed in &page.rows {
+            for element in self.render_row(placed)? {
+                document = document.add(element);
+            }
+        }
+        Ok(SvgPage(document.to_string()))
     }
 
-    fn render_row(&self, placed: &PlacedRow) -> Vec<Box<dyn Node>> {
+    fn render_row(&self, placed: &PlacedRow) -> Result<Vec<Box<dyn Node>>> {
         match placed.row {
-            Row::Text(line) => line::render(line, &self.config, placed.y)
+            Row::Text(line) => Ok(line::render(line, &self.config, placed.y)
                 .into_iter()
                 .map(Box::<dyn Node>::from)
-                .collect(),
+                .collect()),
             Row::Bars(bars) => bar_row::render(bars, &self.config, placed.y),
         }
     }

@@ -2,29 +2,38 @@
 //!
 //! The model holds what the author wrote, whether or not it makes musical
 //! sense: a bar may be empty or start with a hold, `%` may stand in the first
-//! bar of a chart, and a row may be nothing but spans.
+//! bar of a chart, a row may be nothing but spans, and any bar line may stand
+//! anywhere in a row: `||:` at its end, `|||` at its start, even `:||` at its
+//! start, which a chart can't write since its rows start with `|`.
 
-use super::Chord;
+use super::{BarLine, Chord};
 use derive_more::{Display, From};
 use nutype::nutype;
-use std::fmt;
 use std::num::NonZeroUsize;
+use std::{fmt, iter};
 use vec1::Vec1;
 
-/// The cells of one `| … |` line, left to right: bars, and spans standing in
-/// for bars that are not drawn.
+/// One `| … |` line: its cells left to right, bars and spans standing in for
+/// bars that are not drawn, and the bar lines around them.
 ///
 /// The row is drawn as cells one bar wide, a span as many as it stands for.
-/// It displays as written, with single spaces: `| {2} | Am _ G | % |`.
+/// It displays as written, with single spaces: `||: {2} | Am _ G | % :||`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BarRow {
-    pub cells: Vec1<Cell>,
+    /// The bar line before the first cell
+    pub start: BarLine,
+    pub cells: Vec1<Entry>,
 }
 
 impl BarRow {
+    /// A row of `cells` between plain bar lines.
     pub fn new(cells: Vec1<impl Into<Cell>>) -> Self {
         Self {
-            cells: cells.mapped(Into::into),
+            start: BarLine::Single,
+            cells: cells.mapped(|cell| Entry {
+                cell: cell.into(),
+                end: BarLine::Single,
+            }),
         }
     }
 
@@ -32,38 +41,45 @@ impl BarRow {
     pub fn width(&self) -> NonZeroUsize {
         self.cells
             .iter()
-            .map(Cell::width)
+            .map(|entry| entry.cell.width())
             .reduce(|total, width| total.saturating_add(width.get()))
             .expect("a row has at least one cell")
     }
 
-    /// Each bar of the row, left to right, with how many bars wide the row is
-    /// before it, spans included.
-    pub fn bars(&self) -> impl Iterator<Item = (usize, &Bar)> {
-        self.cells
-            .iter()
-            .scan(0, |next, cell| {
-                let start = *next;
-                *next += cell.width().get();
-                Some((start, cell))
-            })
-            .filter_map(|(start, cell)| match cell {
-                Cell::Bar(bar) => Some((start, bar)),
-                Cell::Span(_) => None,
-            })
+    /// Each bar line of the row, left to right: the one it starts with, then
+    /// the one closing each cell.
+    pub fn lines(&self) -> impl Iterator<Item = BarLine> + '_ {
+        iter::once(self.start).chain(self.cells.iter().map(|entry| entry.end))
+    }
+
+    /// Whether a bar stands on either side of the bar line at `index` in
+    /// [`BarRow::lines`]. One that doesn't stands only next to spans.
+    pub fn is_beside_bar(&self, index: usize) -> bool {
+        let is_bar =
+            |entry: Option<&Entry>| entry.is_some_and(|entry| matches!(entry.cell, Cell::Bar(_)));
+        let before = index.checked_sub(1).and_then(|i| self.cells.get(i));
+        is_bar(before) || is_bar(self.cells.get(index))
     }
 }
 
 impl fmt::Display for BarRow {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        for cell in &self.cells {
+        write!(f, "{}", self.start)?;
+        for Entry { cell, end } in &self.cells {
             match cell {
-                Cell::Bar(Bar::Slots(slots)) if slots.is_empty() => write!(f, "| ")?,
-                cell => write!(f, "| {cell} ")?,
+                Cell::Bar(Bar::Slots(slots)) if slots.is_empty() => write!(f, " {end}")?,
+                cell => write!(f, " {cell} {end}")?,
             }
         }
-        write!(f, "|")
+        Ok(())
     }
+}
+
+/// A cell of a row and the bar line that closes it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Entry {
+    pub cell: Cell,
+    pub end: BarLine,
 }
 
 /// What stands between two `|` of a row. It displays as written.
@@ -156,65 +172,4 @@ pub enum Slot {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::model::{Letter, Note};
-    use vec1::vec1;
-
-    fn span(width: usize) -> Cell {
-        let width = NonZeroUsize::new(width).expect("a positive width");
-        Span::try_new(width)
-            .expect("a width within the limit")
-            .into()
-    }
-
-    #[test]
-    fn rows_display_as_written() {
-        let chord = |letter| Slot::Chord(Chord::new(Note::natural(letter), None, None));
-        let row = BarRow::new(vec1![
-            span(2),
-            Bar::Slots(vec![
-                chord(Letter::A),
-                Slot::Hold,
-                chord(Letter::G),
-                Slot::Slash
-            ])
-            .into(),
-            Bar::Repeat.into(),
-            Bar::Slots(Vec::new()).into(),
-        ]);
-        assert_eq!(row.to_string(), "| {2} | A _ G / | % | |");
-    }
-
-    #[test]
-    fn a_row_is_as_wide_as_its_bars_and_the_bars_its_spans_stand_for() {
-        let row = BarRow::new(vec1![span(2), Bar::Repeat.into(), span(3)]);
-        assert_eq!(row.width().get(), 6);
-        assert_eq!(BarRow::new(vec1![Bar::Repeat]).width().get(), 1);
-    }
-
-    #[test]
-    fn each_bar_starts_after_the_cells_before_it() {
-        let empty = || Cell::from(Bar::Slots(Vec::new()));
-        let row = BarRow::new(vec1![
-            span(2),
-            Bar::Repeat.into(),
-            empty(),
-            span(3),
-            empty()
-        ]);
-        let starts: Vec<(usize, &Bar)> = row.bars().collect();
-        let empty_bar = Bar::Slots(Vec::new());
-        assert_eq!(
-            starts,
-            [(2, &Bar::Repeat), (3, &empty_bar), (7, &empty_bar)]
-        );
-    }
-
-    #[test]
-    fn a_span_is_at_most_its_max_width() {
-        let width = |bars| NonZeroUsize::new(bars).expect("a positive width");
-        assert!(Span::try_new(width(Span::MAX_WIDTH)).is_ok());
-        assert!(Span::try_new(width(Span::MAX_WIDTH + 1)).is_err());
-    }
-}
+mod tests;

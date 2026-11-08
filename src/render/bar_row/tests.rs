@@ -1,5 +1,5 @@
 use super::*;
-use crate::model::{Cell, Chord, ChordQuality, Letter, Note, Span};
+use crate::model::{BarLine, Cell, Chord, ChordQuality, Letter, Note, Span};
 use std::num::NonZeroUsize;
 use vec1::Vec1;
 
@@ -32,7 +32,7 @@ fn marks(bars: Vec<Bar>, width: f64) -> Vec<Mark> {
 
 fn cell_marks(cells: Vec<Cell>, width: f64) -> Vec<Mark> {
     let row = BarRow::new(Vec1::try_from_vec(cells).expect("at least one cell"));
-    layout(&row, &style(), 0.0, width, BOTTOM)
+    layout(&row, &style(), 0.0, width, BOTTOM).expect("room to draw the row")
 }
 
 fn span(width: usize) -> Cell {
@@ -104,6 +104,46 @@ fn spans_take_room_without_bar_lines_of_their_own() {
         cell_marks(vec![span(3)], 300.0).is_empty(),
         "nothing to draw"
     );
+}
+
+/// `bars` one-chord bars across `width`, every bar line `line`.
+fn row_of(bars: usize, line: BarLine) -> BarRow {
+    let bar = Cell::from(slots(vec![chord(Letter::C, None)]));
+    let mut row = BarRow::new(Vec1::from_vec_push(vec![bar.clone(); bars - 1], bar));
+    row.start = line;
+    for entry in row.cells.iter_mut() {
+        entry.end = line;
+    }
+    row
+}
+
+#[test]
+fn a_chord_squeezed_too_narrow_to_read_is_reported() {
+    // About as narrow as 16 bars on the default page.
+    let width = 16.0 * 0.9 * SIZE;
+    let plain = row_of(16, BarLine::Single);
+    let squeezed = layout(&plain, &style(), 0.0, width, BOTTOM).expect("plain lines leave room");
+    assert!(chords(&squeezed).iter().all(|&(_, squeeze)| squeeze > 0.5));
+
+    let mut repeats = row_of(16, BarLine::RepeatBoth);
+    repeats.start = BarLine::RepeatStart;
+    repeats.cells.last_mut().end = BarLine::RepeatEnd;
+    let cramped = layout(&repeats, &style(), 0.0, width, BOTTOM);
+    let Err(Cramped::Chord(chord)) = cramped else {
+        panic!("repeat signs leave no room for the chords: {cramped:?}");
+    };
+    assert_eq!(chord.to_string(), "C");
+}
+
+#[test]
+fn bar_lines_running_into_each_other_are_reported() {
+    let empty = || Cell::from(slots(vec![]));
+    let mut row = BarRow::new(Vec1::from_vec_push(vec![empty(); 29], empty()));
+    for entry in row.cells.iter_mut() {
+        entry.end = BarLine::RepeatBoth;
+    }
+    let cramped = layout(&row, &style(), 0.0, 30.0 * 0.6 * SIZE, BOTTOM);
+    assert_eq!(cramped, Err(Cramped::BarLines));
 }
 
 #[test]
