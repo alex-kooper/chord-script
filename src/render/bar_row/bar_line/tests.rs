@@ -1,11 +1,14 @@
 use super::*;
-use crate::model::{Bar, BarRow, Cell, Chord, Letter, Note, Slot, Span};
+use crate::model::{Bar, BarRow, Cell, Chord, Letter, Note, RepeatCount, Slot, Span};
 use crate::render::BarRowStyle;
 use crate::render::bar_row::{INSET, layout};
 use std::num::NonZeroUsize;
 use vec1::vec1;
 
+mod counts;
+
 const SIZE: f64 = 20.0;
+const COUNT_SIZE: f64 = 12.0;
 const BASELINE: f64 = 100.0;
 
 fn drawn(line: BarLine, x: f64, place: Place) -> Sign {
@@ -28,7 +31,7 @@ fn shape(sign: &Sign) -> String {
             }
             Mark::Dot { at, .. } if !pieces.contains(&(at.x, ':')) => pieces.push((at.x, ':')),
             Mark::Dot { .. } => {}
-            Mark::Chord { .. } => panic!("a bar line draws no chord"),
+            Mark::Chord { .. } | Mark::Count { .. } => panic!("a sign draws no text"),
         }
     }
     pieces.sort_by(|a, b| a.0.total_cmp(&b.0));
@@ -54,8 +57,8 @@ fn each_sign_is_drawn_as_its_strokes_and_dots() {
         (BarLine::Double, "||"),
         (BarLine::Final, "|I"),
         (BarLine::RepeatStart, "I|:"),
-        (BarLine::RepeatEnd, ":|I"),
-        (BarLine::RepeatBoth, ":|I|:"),
+        (BarLine::RepeatEnd(None), ":|I"),
+        (BarLine::RepeatBoth(None), ":|I|:"),
     ] {
         assert_eq!(
             shape(&drawn(line, 100.0, Place::Inside)),
@@ -81,14 +84,14 @@ fn inside_a_row_a_sign_stands_on_its_heaviest_stroke() {
         "reaches into the bar it opens"
     );
 
-    let end = drawn(BarLine::RepeatEnd, 100.0, Place::Inside);
+    let end = drawn(BarLine::RepeatEnd(None), 100.0, Place::Inside);
     assert!(close(heaviest(&end), 100.0) && close(end.right, 100.0 + half_thick));
     assert!(
         close(100.0 - end.left, start.right - 100.0),
         "mirror images"
     );
 
-    let both = drawn(BarLine::RepeatBoth, 100.0, Place::Inside);
+    let both = drawn(BarLine::RepeatBoth(None), 100.0, Place::Inside);
     assert!(close(heaviest(&both), 100.0) && close(both.left + both.right, 200.0));
 
     let double = drawn(BarLine::Double, 100.0, Place::Inside);
@@ -112,7 +115,7 @@ fn at_the_ends_of_a_row_a_sign_is_pushed_inward() {
     let ending = drawn(BarLine::RepeatStart, 300.0, Place::End);
     assert!(close(ending.right, 300.0), "its dots inside the row");
 
-    for line in [BarLine::Final, BarLine::RepeatEnd] {
+    for line in [BarLine::Final, BarLine::RepeatEnd(None)] {
         let closing = drawn(line, 300.0, Place::End);
         assert!(close(heaviest(&closing), 300.0), "{line} already fits");
     }
@@ -158,7 +161,7 @@ fn row_marks(row: &BarRow) -> Vec<Mark> {
         above: 5.0,
         below: 5.0,
     };
-    layout(row, &style, 0.0, 200.0, BASELINE).expect("room to draw the row")
+    layout(row, &style, COUNT_SIZE, 0.0, 200.0, BASELINE).expect("room to draw the row")
 }
 
 fn chord_starts(marks: &[Mark]) -> Vec<f64> {
@@ -195,9 +198,9 @@ fn a_sign_takes_room_from_the_bars_beside_it() {
 #[test]
 fn a_sign_beside_a_span_reaches_into_its_empty_room() {
     let mut after_span = BarRow::new(vec1![span(), bar()]);
-    after_span.cells[0].end = BarLine::RepeatEnd;
+    after_span.cells[0].end = BarLine::RepeatEnd(None);
     let marks = row_marks(&after_span);
-    let closing = drawn(BarLine::RepeatEnd, 100.0, Place::Inside);
+    let closing = drawn(BarLine::RepeatEnd(None), 100.0, Place::Inside);
     let left_of_bar = dots(&marks);
     assert!(
         left_of_bar.len() == 2 && left_of_bar.iter().all(|&x| x < 100.0),

@@ -1,5 +1,5 @@
 use super::*;
-use crate::model::{Letter, Note};
+use crate::model::{Letter, Note, RepeatCount};
 use vec1::vec1;
 
 fn span(width: usize) -> Cell {
@@ -32,10 +32,32 @@ fn rows_display_as_written() {
 
     row.start = BarLine::RepeatStart;
     row.cells[0].end = BarLine::Double;
-    row.cells[1].end = BarLine::RepeatBoth;
-    row.cells[2].end = BarLine::RepeatEnd;
+    row.cells[1].end = BarLine::RepeatBoth(None);
+    row.cells[2].end = BarLine::RepeatEnd(None);
     row.cells[3].end = BarLine::Final;
     assert_eq!(row.to_string(), "||: {2} || A _ G / :||: % :|| |||");
+
+    let count = |times| Some(RepeatCount::try_new(times).expect("a count within the limits"));
+    row.cells[1].end = BarLine::RepeatBoth(count(2));
+    row.cells[2].end = BarLine::RepeatEnd(count(13));
+    assert_eq!(row.to_string(), "||: {2} || A _ G / :||:x2 % :||x13 |||");
+}
+
+#[test]
+fn a_repeat_count_is_from_its_min_to_its_max() {
+    assert!(RepeatCount::try_new(RepeatCount::MIN - 1).is_err());
+    assert!(RepeatCount::try_new(RepeatCount::MIN).is_ok());
+    assert!(RepeatCount::try_new(RepeatCount::MAX).is_ok());
+    assert!(RepeatCount::try_new(RepeatCount::MAX + 1).is_err());
+}
+
+#[test]
+fn only_a_repeat_end_has_a_count() {
+    let count = RepeatCount::try_new(3).ok();
+    assert_eq!(BarLine::RepeatEnd(count).count(), count);
+    assert_eq!(BarLine::RepeatBoth(count).count(), count);
+    assert_eq!(BarLine::RepeatEnd(None).count(), None);
+    assert_eq!(BarLine::RepeatStart.count(), None);
 }
 
 #[test]

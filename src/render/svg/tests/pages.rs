@@ -1,6 +1,6 @@
 use super::{baseline_of, chart_of, close, left_line, text_cap_height};
 use crate::model::{
-    Bar, BarLine, BarRow, Block, Chart, Chord, Inline, Letter, LineLevel, Note, Slot,
+    Bar, BarLine, BarRow, Block, Chart, Chord, Inline, Letter, LineLevel, Note, RepeatCount, Slot,
 };
 use crate::render::{FontStyle, LayoutConfig, RenderConfig, RenderError, SvgGenerator};
 use vec1::Vec1;
@@ -55,7 +55,7 @@ fn render_fails_when_a_bar_row_is_too_cramped_to_read() {
     let mut row = BarRow::new(Vec1::from_vec_push(vec![bar(); 15], bar()));
     row.start = BarLine::RepeatStart;
     for entry in row.cells.iter_mut() {
-        entry.end = BarLine::RepeatBoth;
+        entry.end = BarLine::RepeatBoth(None);
     }
     let chart = Chart::new(vec![row.into()]);
     let error = SvgGenerator::with_defaults()
@@ -67,6 +67,38 @@ fn render_fails_when_a_bar_row_is_too_cramped_to_read() {
     assert!(row.starts_with("bar row \"||: C :||: C"), "{row}");
     assert_eq!(what, "`C`");
     assert!(error.to_string().contains("give it fewer bars"), "{error}");
+}
+
+#[test]
+fn a_repeat_count_is_written_at_the_size_of_text() {
+    let bar = Bar::Slots(vec![Slot::Chord(Chord::new(
+        Note::natural(Letter::C),
+        None,
+        None,
+    ))]);
+    let mut row = BarRow::new(Vec1::new(bar));
+    let count = RepeatCount::try_new(3).expect("a count within the limits");
+    row.cells[0].end = BarLine::RepeatEnd(Some(count));
+    let pages = render(
+        &SvgGenerator::with_defaults(),
+        &Chart::new(vec![row.into()]),
+    );
+
+    let config = RenderConfig::default();
+    let count = pages[0]
+        .split("<text")
+        .find(|element| {
+            let content = element
+                .split_once('>')
+                .and_then(|(_, rest)| rest.split_once("</text>"));
+            content.is_some_and(|(content, _)| content.trim() == "x3")
+        })
+        .unwrap_or_else(|| panic!("a count: {}", pages[0]));
+    let size = format!("font-size=\"{}\"", config.text.size);
+    let weight = format!("font-weight=\"{}\"", config.text.weight);
+    for attribute in [size.as_str(), weight.as_str(), "text-anchor=\"middle\""] {
+        assert!(count.contains(attribute), "{attribute} in {count}");
+    }
 }
 
 #[test]

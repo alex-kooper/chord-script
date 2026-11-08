@@ -107,7 +107,8 @@ fn bad_bars_are_one_error_each() {
             "| Am | G",
             "a bar row ends with a bar line: close the last bar, or remove what follows it",
         ),
-        ("| Am | G | x2", "a bar row ends with a bar line"),
+        ("| Am | G | y2", "a bar row ends with a bar line"),
+        ("| Am | G | x2", "a repeat count stands against its `:||`"),
         ("|", "a bar row needs at least one bar"),
         ("|  ", "a bar row needs at least one bar"),
     ] {

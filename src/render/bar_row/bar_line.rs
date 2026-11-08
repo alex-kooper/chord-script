@@ -5,6 +5,10 @@
 //! repeat end or final line into the bar before. A double line reaches back,
 //! like a final one. At either end of the row a sign is pushed inward, so its
 //! outer stroke stands on the row's edge like a plain line.
+//!
+//! A repeat count stands centered above its sign's strokes, in the space above
+//! the row: it takes no room from the bars, and leaves the space between rows
+//! as it is. At the end of the row it reaches a little past the margin.
 
 use super::{ASCENT, BAR_LINE_DROP, BAR_LINE_WIDTH, Mark, Point};
 use crate::model::BarLine;
@@ -19,6 +23,8 @@ const DOT_GAP: f64 = 0.08;
 const DOT_RADIUS: f64 = 0.058;
 /// How far each repeat dot sits above or below the middle of a root.
 const DOT_SPREAD: f64 = 0.2;
+/// Between the top of the bar lines and the baseline of a repeat count.
+const COUNT_GAP: f64 = 0.1;
 
 /// Where a bar line stands in its row.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -36,6 +42,8 @@ pub(super) struct Sign {
     pub marks: Vec<Mark>,
     pub left: f64,
     pub right: f64,
+    /// The middle of its strokes, its dots left out
+    pub strokes_middle: f64,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -70,8 +78,8 @@ fn pieces(line: BarLine) -> (&'static [Piece], usize) {
         BarLine::Double => (&[Thin, Thin], 1),
         BarLine::Final => (&[Thin, Thick], 1),
         BarLine::RepeatStart => (&[Thick, Thin, Dots], 0),
-        BarLine::RepeatEnd => (&[Dots, Thin, Thick], 2),
-        BarLine::RepeatBoth => (&[Dots, Thin, Thick, Thin, Dots], 2),
+        BarLine::RepeatEnd(_) => (&[Dots, Thin, Thick], 2),
+        BarLine::RepeatBoth(_) => (&[Dots, Thin, Thick, Thin, Dots], 2),
     }
 }
 
@@ -94,15 +102,50 @@ pub(super) fn sign(line: BarLine, x: f64, place: Place, baseline: f64, size: f64
         .zip(&middles)
         .flat_map(|(&piece, &middle)| piece_marks(piece, offset + middle, baseline, size))
         .collect();
+    let edge = |index: usize, side: f64| {
+        offset + middles[index] + side * pieces[index].half_width() * size
+    };
     let (left, right) = if line == BarLine::Single {
         (x, x)
     } else {
-        (
-            offset + middles[first] - pieces[first].half_width() * size,
-            offset + middles[last] + pieces[last].half_width() * size,
-        )
+        (edge(first, -1.0), edge(last, 1.0))
     };
-    Sign { marks, left, right }
+    let is_stroke = |&piece: &Piece| piece != Piece::Dots;
+    let first_stroke = pieces
+        .iter()
+        .position(is_stroke)
+        .expect("a sign has a stroke");
+    let last_stroke = pieces
+        .iter()
+        .rposition(is_stroke)
+        .expect("a sign has a stroke");
+    let strokes_middle = (edge(first_stroke, -1.0) + edge(last_stroke, 1.0)) / 2.0;
+    Sign {
+        marks,
+        left,
+        right,
+        strokes_middle,
+    }
+}
+
+/// The repeat count of `line`, if it has one, drawn at `count_size` and
+/// centered above the strokes of `sign`, the line as drawn in a row whose
+/// chords stand on `baseline` at `size`.
+pub(super) fn count(
+    line: BarLine,
+    sign: &Sign,
+    baseline: f64,
+    size: f64,
+    count_size: f64,
+) -> Option<Mark> {
+    line.count().map(|count| Mark::Count {
+        at: Point {
+            x: sign.strokes_middle,
+            y: baseline - (ASCENT + COUNT_GAP) * size,
+        },
+        size: count_size,
+        count,
+    })
 }
 
 /// Where the middle of each of `pieces` is, from the middle of the first.

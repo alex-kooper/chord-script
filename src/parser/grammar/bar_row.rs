@@ -95,12 +95,15 @@ fn checked_row<'a>(
 /// Whether anything but spaces follows the row's last bar line. Reports it.
 fn has_trailing_text<'a>(after_last: &Segment<'a>, emitter: &mut Emitter<Rich<'a, char>>) -> bool {
     let reported = has_bad_characters(after_last, emitter);
-    let trailing = !after_last.text.trim_matches(is_separator).is_empty();
+    let text = after_last.text.trim_matches(is_separator);
+    let trailing = !text.is_empty();
     if trailing && !reported {
-        emitter.emit(Rich::custom(
-            trimmed(after_last),
-            "a bar row ends with a bar line: close the last bar, or remove what follows it",
-        ));
+        let problem = if bar_line::is_detached_count(text) {
+            bar_line::DETACHED_COUNT
+        } else {
+            "a bar row ends with a bar line: close the last bar, or remove what follows it"
+        };
+        emitter.emit(Rich::custom(trimmed(after_last), problem));
     }
     trailing
 }
@@ -214,6 +217,9 @@ fn slot_problem(word: &str) -> Option<String> {
         return Some(
             "a repeat sign's `:` stands against its bar line, e.g. `||: Am :||`".to_string(),
         );
+    }
+    if bar_line::is_detached_count(word) {
+        return Some(bar_line::DETACHED_COUNT.to_string());
     }
     if word.contains('{') {
         return Some("a span stands alone between two `|`, e.g. `| {2} | Am |`".to_string());

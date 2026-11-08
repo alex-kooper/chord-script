@@ -18,7 +18,7 @@
 use super::BarRowStyle;
 use super::chord::{self, BassPlacement, ChordLayout, Piece, Slash};
 use super::fonts::{self, Font};
-use crate::model::{Bar, BarRow, Cell, Chord, Slot};
+use crate::model::{Bar, BarRow, Cell, Chord, RepeatCount, Slot};
 use bar_line::{Place, Sign};
 use std::iter;
 
@@ -85,6 +85,13 @@ pub(super) enum Mark {
         slash: Option<Slash>,
         squeeze: f64,
     },
+    /// The repeat count of a sign, `x3`, in the text font at `size`, its
+    /// baseline centered on `at`
+    Count {
+        at: Point,
+        size: f64,
+        count: RepeatCount,
+    },
 }
 
 /// The height of a bar row's box: its chords and the bass hanging below them.
@@ -108,17 +115,19 @@ pub(super) enum Cramped<'a> {
 }
 
 /// The marks of `row`, drawn between `left` and `right` in a row box whose
-/// bottom is at `bottom`, or what has too little room there.
+/// bottom is at `bottom`, with its repeat counts at `count_size`, or what has
+/// too little room there.
 pub(super) fn layout<'a>(
     row: &'a BarRow,
     style: &BarRowStyle,
+    count_size: f64,
     left: f64,
     right: f64,
     bottom: f64,
 ) -> Result<Vec<Mark>, Cramped<'a>> {
     let size = style.chord_size;
     let baseline = bottom - DESCENT * size;
-    let signs = signs(row, left, right, baseline, size);
+    let signs = signs(row, left, right, baseline, size, count_size);
     let room = |index: usize| {
         signs[index]
             .as_ref()
@@ -139,9 +148,17 @@ pub(super) fn layout<'a>(
     Ok(lines.chain(contents.into_iter().flatten()).collect())
 }
 
-/// Each bar line of `row` as drawn between `left` and `right`, in the order of
-/// [`BarRow::lines`]: `None` for one with no bar beside it, which is not drawn.
-fn signs(row: &BarRow, left: f64, right: f64, baseline: f64, size: f64) -> Vec<Option<Sign>> {
+/// Each bar line of `row` as drawn between `left` and `right`, with its repeat
+/// count at `count_size`, in the order of [`BarRow::lines`]: `None` for one
+/// with no bar beside it, which is not drawn.
+fn signs(
+    row: &BarRow,
+    left: f64,
+    right: f64,
+    baseline: f64,
+    size: f64,
+    count_size: f64,
+) -> Vec<Option<Sign>> {
     let bar_width = (right - left) / row.width().get() as f64;
     let edges = iter::once(0).chain(row.cells.iter().scan(0, |at, entry| {
         *at += entry.cell.width().get();
@@ -158,8 +175,12 @@ fn signs(row: &BarRow, left: f64, right: f64, baseline: f64, size: f64) -> Vec<O
                 _ => Place::Inside,
             };
             let x = left + at as f64 * bar_width;
-            row.is_beside_bar(index)
-                .then(|| bar_line::sign(line, x, place, baseline, size))
+            row.is_beside_bar(index).then(|| {
+                let mut sign = bar_line::sign(line, x, place, baseline, size);
+                let count = bar_line::count(line, &sign, baseline, size, count_size);
+                sign.marks.extend(count);
+                sign
+            })
         })
         .collect()
 }

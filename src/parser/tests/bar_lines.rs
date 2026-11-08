@@ -87,6 +87,60 @@ fn bad_bar_lines_are_one_error_each() {
 }
 
 #[test]
+fn a_repeat_end_may_say_how_many_times_it_is_played() {
+    let row = "||: Am :||:x2 G :||x13";
+    assert_eq!(rows(row), [row]);
+    assert_eq!(rows("||:Am:||x3"), ["||: Am :||x3"]);
+    assert_eq!(rows("| C :||x3| G |"), ["| C :||x3 | G |"]);
+}
+
+#[test]
+fn bad_repeat_counts_are_one_error_each() {
+    for (input, message) in [
+        (
+            "| Am |x3 G |",
+            "a repeat count follows only `:||` or `:||:`, not `|`",
+        ),
+        (
+            "||:x3 Am :||",
+            "a repeat count follows only `:||` or `:||:`, not `||:`",
+        ),
+        ("| Am |||x2", "not `|||`"),
+        (
+            "| Am :||x",
+            "`x` is not a repeat count: write `x` and how many times the repeat is played, e.g. `:||x3`",
+        ),
+        ("| Am :||x3b", "`x3b` is not a repeat count"),
+        ("| Am :||xx3", "`xx3` is not a repeat count"),
+        ("| Am :||xé |", "`xé` is not a repeat count"),
+        (
+            "| Am :||x1",
+            "a repeat is played from `x2` to `x99` times, not `x1`",
+        ),
+        ("| Am :||:x0 G |", "not `x0`"),
+        ("| Am :||x100", "not `x100`"),
+        ("| Am :||x99999999999", "not `x99999999999`"),
+        (
+            "| Am :|| x3",
+            "a repeat count stands against its `:||` or `:||:`, e.g. `:||x3`",
+        ),
+        (
+            "| Am :||: x2 G |",
+            "a repeat count stands against its `:||`",
+        ),
+        ("| Am :|x3", "write `:||` for a repeat end"),
+    ] {
+        assert_errors(input, &[message]);
+    }
+}
+
+#[test]
+fn count_errors_point_at_the_count() {
+    let report = error_report("| Am :||x1 G |");
+    assert!(report.contains(":1:9"), "{report}");
+}
+
+#[test]
 fn errors_point_at_the_bar_line() {
     let report = error_report("| Am |: G |");
     assert!(report.contains(":1:6"), "{report}");

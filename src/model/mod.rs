@@ -9,8 +9,8 @@ mod inline;
 mod line;
 mod note;
 
-pub use bar::{Bar, BarRow, Cell, Entry, Slot, Span};
-pub use bar_line::BarLine;
+pub use bar::{Bar, BarRow, Cell, Entry, Slot, Span, SpanError};
+pub use bar_line::{BarLine, RepeatCount, RepeatCountError};
 pub use chord::{Chord, ChordQuality, ChordQualityError, is_quality_char};
 pub use inline::{Content, Inline, InlineText, InlineTextError, TextStyle, is_displayable};
 pub use line::{Line, LineLevel};

@@ -2,7 +2,7 @@
 //! [`crate::render::bar_row`]; this module only turns its marks into elements.
 
 use super::line::{render_piece, rounded};
-use crate::model::{BarRow, TextStyle};
+use crate::model::{BarRow, RepeatCount, TextStyle};
 use crate::render::bar_row::{self, Mark, Point};
 use crate::render::chord::{Offset, Piece, Slash};
 use crate::render::{RenderConfig, RenderError, Result};
@@ -20,15 +20,12 @@ pub(super) fn render(
     let page = &config.layout;
     let left = page.margin_horizontal;
     let right = page.width - page.margin_horizontal;
-    let marks = bar_row::layout(row, &config.bar_row, left, right, bottom)
+    let marks = bar_row::layout(row, &config.bar_row, config.text.size, left, right, bottom)
         .map_err(|cramped| RenderError::cramped_bar_row(row, cramped))?;
-    Ok(marks
-        .iter()
-        .map(|mark| render_mark(mark, &config.font_family))
-        .collect())
+    Ok(marks.iter().map(|mark| render_mark(mark, config)).collect())
 }
 
-fn render_mark(mark: &Mark, font_family: &str) -> Box<dyn Node> {
+fn render_mark(mark: &Mark, config: &RenderConfig) -> Box<dyn Node> {
     match mark {
         Mark::Stroke { from, to, width } => Box::new(stroke(*from, *to, *width)),
         Mark::Dot { at, radius } => Box::new(dot(*at, *radius)),
@@ -38,8 +35,27 @@ fn render_mark(mark: &Mark, font_family: &str) -> Box<dyn Node> {
             pieces,
             slash,
             squeeze,
-        } => chord(*at, *size, pieces, slash.as_ref(), *squeeze, font_family),
+        } => chord(
+            *at,
+            *size,
+            pieces,
+            slash.as_ref(),
+            *squeeze,
+            &config.font_family,
+        ),
+        Mark::Count { at, size, count } => Box::new(count_text(*at, *size, *count, config)),
     }
+}
+
+/// A repeat count, written like a text line.
+fn count_text(at: Point, size: f64, count: RepeatCount, config: &RenderConfig) -> SvgText {
+    SvgText::new(count.to_string())
+        .set("x", rounded(at.x))
+        .set("y", rounded(at.y))
+        .set("font-family", config.font_family.as_str())
+        .set("font-size", rounded(size))
+        .set("font-weight", config.text.weight.as_str())
+        .set("text-anchor", "middle")
 }
 
 /// A stroke `width` thick across from `from` to `to`, its ends cut level: a

@@ -277,10 +277,29 @@ two for the rest.
 - Rows don't share bar lines: a row ending with `||` and the next starting
   with `||` both draw theirs.
 
+A repeat played more than twice says how many times right after its `:||` or
+`:||:`, with no space: `:||x3`. It is drawn as written, `x3`, as large as a
+`-` line and centered above the sign's lines, its dots left out. At the end of
+a row it reaches a little past the margin:
+
+```
+||: Am | G | F | E7 :||x4
+||: C | G :||:x3 F | C :||
+```
+
+- A count is from `x2` to `x99`. `x2` is what the sign means without one.
+- The count takes no room and no space: it stands in the space above the
+  row, and the rows stay as far apart as without it. If it runs into the
+  bass of the row above, put an empty `-` line before its row.
+
 These are errors:
 
 - `|:`, `:|` and `:|:`: write `||:`, `:||` and `:||:`
 - any other run of `|` and `:`, e.g. `||||` or `|:|`
+- a count after any other bar line, e.g. `|x3` or `||:x3`
+- a count that isn't `x` and a number from 2 to 99, e.g. `x`, `x1`, `x3b` or
+  `x100`
+- a count apart from its sign, e.g. `:|| x3`: write `:||x3`
 - a `:` apart from its bar line, e.g. `| Am : |` or `| Am: |`
 - a bar line other than `|` with no bar on either side, e.g. between two
   spans, `| {1} || {1} |`: it would not be drawn
@@ -369,7 +388,7 @@ Bar rows are drawn in the style of iReal Pro:
 
 In rough order:
 
-1. Endings (`1.`, `2.`) and repeat counts.
+1. Endings (`1.`, `2.`).
 2. Lyrics and other symbols (dynamics, fermatas) in their own rows, aligned
    with the bars and chords.
 3. Text in spans, left, centered, or right aligned, after the width:
@@ -664,7 +683,8 @@ plain_char   = any character except "*", "_", "<", ">", "[", "]", NEWLINE
 NEWLINE      = "\r\n" | "\n" | "\r" | VT | FF | NEL | LS | PS
 
 bar_row      = bar_line ( WS* cell WS* bar_line )+ WS*   # starting with "|"
-bar_line     = "|" | "||" | "|||" | "||:" | ":||" | ":||:"
+bar_line     = "|" | "||" | "|||" | "||:" | ( ":||" | ":||:" ) count?
+count        = "x" [0-9]+                       # 2 to 99
 cell         = span | bar
 span         = "{" WS* [0-9]+ WS* "}"           # 1 to 16
 bar          = "%" | slot ( WS+ slot )* | WS    # WS alone: an empty bar

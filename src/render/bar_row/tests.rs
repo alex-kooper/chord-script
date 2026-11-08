@@ -4,6 +4,7 @@ use std::num::NonZeroUsize;
 use vec1::Vec1;
 
 const SIZE: f64 = 20.0;
+const COUNT_SIZE: f64 = 12.0;
 /// The row box's bottom edge; the chords' baseline is `DESCENT` above it.
 const BOTTOM: f64 = 100.0;
 const BASELINE: f64 = BOTTOM - DESCENT * SIZE;
@@ -32,7 +33,7 @@ fn marks(bars: Vec<Bar>, width: f64) -> Vec<Mark> {
 
 fn cell_marks(cells: Vec<Cell>, width: f64) -> Vec<Mark> {
     let row = BarRow::new(Vec1::try_from_vec(cells).expect("at least one cell"));
-    layout(&row, &style(), 0.0, width, BOTTOM).expect("room to draw the row")
+    layout(&row, &style(), COUNT_SIZE, 0.0, width, BOTTOM).expect("room to draw the row")
 }
 
 fn span(width: usize) -> Cell {
@@ -122,13 +123,14 @@ fn a_chord_squeezed_too_narrow_to_read_is_reported() {
     // About as narrow as 16 bars on the default page.
     let width = 16.0 * 0.9 * SIZE;
     let plain = row_of(16, BarLine::Single);
-    let squeezed = layout(&plain, &style(), 0.0, width, BOTTOM).expect("plain lines leave room");
+    let squeezed =
+        layout(&plain, &style(), COUNT_SIZE, 0.0, width, BOTTOM).expect("plain lines leave room");
     assert!(chords(&squeezed).iter().all(|&(_, squeeze)| squeeze > 0.5));
 
-    let mut repeats = row_of(16, BarLine::RepeatBoth);
+    let mut repeats = row_of(16, BarLine::RepeatBoth(None));
     repeats.start = BarLine::RepeatStart;
-    repeats.cells.last_mut().end = BarLine::RepeatEnd;
-    let cramped = layout(&repeats, &style(), 0.0, width, BOTTOM);
+    repeats.cells.last_mut().end = BarLine::RepeatEnd(None);
+    let cramped = layout(&repeats, &style(), COUNT_SIZE, 0.0, width, BOTTOM);
     let Err(Cramped::Chord(chord)) = cramped else {
         panic!("repeat signs leave no room for the chords: {cramped:?}");
     };
@@ -140,9 +142,9 @@ fn bar_lines_running_into_each_other_are_reported() {
     let empty = || Cell::from(slots(vec![]));
     let mut row = BarRow::new(Vec1::from_vec_push(vec![empty(); 29], empty()));
     for entry in row.cells.iter_mut() {
-        entry.end = BarLine::RepeatBoth;
+        entry.end = BarLine::RepeatBoth(None);
     }
-    let cramped = layout(&row, &style(), 0.0, 30.0 * 0.6 * SIZE, BOTTOM);
+    let cramped = layout(&row, &style(), COUNT_SIZE, 0.0, 30.0 * 0.6 * SIZE, BOTTOM);
     assert_eq!(cramped, Err(Cramped::BarLines));
 }
 

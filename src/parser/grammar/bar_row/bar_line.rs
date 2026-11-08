@@ -1,7 +1,7 @@
 //! Bar lines, `|` to `:||:`, and where they split a row.
 
 use super::{Segment, is_separator};
-use crate::model::{BarLine, BarRow};
+use crate::model::{BarLine, BarRow, RepeatCount};
 use chumsky::input::Emitter;
 use chumsky::prelude::*;
 
@@ -45,10 +45,42 @@ fn is_line_char(c: char) -> bool {
     matches!(c, '|' | ':')
 }
 
-/// The length of the bar line `text` starts with.
+/// The length of the bar line `text` starts with, with the repeat count
+/// written against it, if any.
 pub(super) fn line_len(text: &str) -> usize {
+    let sign = sign_len(text);
+    sign + count_len(&text[sign..])
+}
+
+/// The length of the bar line's sign `text` starts with, `|` to `:||:`.
+fn sign_len(text: &str) -> usize {
     text.find(|c| !is_line_char(c)).unwrap_or(text.len())
 }
+
+/// The length of the repeat count `text` starts with, `x3`: an `x` and all
+/// the letters and digits after it, in any script, so `x3b` and `xé` are each
+/// one (bad) count.
+fn count_len(text: &str) -> usize {
+    match text.strip_prefix('x') {
+        Some(rest) => {
+            1 + rest
+                .find(|c: char| !c.is_alphanumeric())
+                .unwrap_or(rest.len())
+        }
+        None => 0,
+    }
+}
+
+/// Whether `word`, written apart from any bar line, looks like a repeat
+/// count, `x3`, meant for the bar line before it.
+pub(super) fn is_detached_count(word: &str) -> bool {
+    word.strip_prefix('x')
+        .is_some_and(|digits| !digits.is_empty() && digits.chars().all(|c| c.is_ascii_digit()))
+}
+
+/// Why a repeat count written apart from its bar line is wrong.
+pub(super) const DETACHED_COUNT: &str =
+    "a repeat count stands against its `:||` or `:||:`, e.g. `:||x3`";
 
 /// Where the next bar line in `text` starts, if there is one.
 fn next_line(text: &str) -> Option<usize> {
@@ -60,27 +92,78 @@ fn next_line(text: &str) -> Option<usize> {
         })
 }
 
-/// The bar line written in `line`. A bad one is reported and read as `|`.
+/// The bar line written in `line`, with its repeat count. A bad sign is
+/// reported and read as `|`; a bad count is reported and left out.
 pub(super) fn checked_line<'a>(
     line: &Segment<'a>,
     emitter: &mut Emitter<Rich<'a, char>>,
 ) -> BarLine {
-    let problem = match line.text {
-        "|" => return BarLine::Single,
-        "||" => return BarLine::Double,
-        "|||" => return BarLine::Final,
-        "||:" => return BarLine::RepeatStart,
-        ":||" => return BarLine::RepeatEnd,
-        ":||:" => return BarLine::RepeatBoth,
-        "|:" => "write `||:` for a repeat start".to_string(),
-        ":|" => "write `:||` for a repeat end".to_string(),
-        ":|:" => "write `:||:` to end a repeat and start the next".to_string(),
-        other => {
-            format!("`{other}` is not a bar line: write `|`, `||`, `|||`, `||:`, `:||` or `:||:`")
+    let (sign, count) = line.text.split_at(sign_len(line.text));
+    let sign_end = line.span.start + sign.len();
+    let read = match sign_line(sign) {
+        Ok(read) => read,
+        Err(problem) => {
+            emitter.emit(Rich::custom(
+                SimpleSpan::from(line.span.start..sign_end),
+                problem,
+            ));
+            return BarLine::Single;
         }
     };
-    emitter.emit(Rich::custom(line.span, problem));
-    BarLine::Single
+    if count.is_empty() {
+        return read;
+    }
+    counted(read, count).unwrap_or_else(|problem| {
+        emitter.emit(Rich::custom(
+            SimpleSpan::from(sign_end..line.span.end),
+            problem,
+        ));
+        read
+    })
+}
+
+/// The bar line `sign` stands for, or why it stands for none.
+fn sign_line(sign: &str) -> Result<BarLine, String> {
+    match sign {
+        "|" => Ok(BarLine::Single),
+        "||" => Ok(BarLine::Double),
+        "|||" => Ok(BarLine::Final),
+        "||:" => Ok(BarLine::RepeatStart),
+        ":||" => Ok(BarLine::RepeatEnd(None)),
+        ":||:" => Ok(BarLine::RepeatBoth(None)),
+        "|:" => Err("write `||:` for a repeat start".to_string()),
+        ":|" => Err("write `:||` for a repeat end".to_string()),
+        ":|:" => Err("write `:||:` to end a repeat and start the next".to_string()),
+        other => Err(format!(
+            "`{other}` is not a bar line: write `|`, `||`, `|||`, `||:`, `:||` or `:||:`"
+        )),
+    }
+}
+
+/// `line` played the times `count`, e.g. `x3`, says, or why it can't be.
+fn counted(line: BarLine, count: &str) -> Result<BarLine, String> {
+    let with_count: fn(Option<RepeatCount>) -> BarLine = match line {
+        BarLine::RepeatEnd(_) => BarLine::RepeatEnd,
+        BarLine::RepeatBoth(_) => BarLine::RepeatBoth,
+        other => {
+            return Err(format!(
+                "a repeat count follows only `:||` or `:||:`, not `{other}`"
+            ));
+        }
+    };
+    let digits = count.strip_prefix('x').expect("a count starts with `x`");
+    if digits.is_empty() || !digits.chars().all(|c| c.is_ascii_digit()) {
+        return Err(format!(
+            "`{count}` is not a repeat count: write `x` and how many times the repeat is played, e.g. `:||x3`"
+        ));
+    }
+    let (min, max) = (RepeatCount::MIN, RepeatCount::MAX);
+    digits
+        .parse()
+        .ok()
+        .and_then(|times| RepeatCount::try_new(times).ok())
+        .map(|count| with_count(Some(count)))
+        .ok_or_else(|| format!("a repeat is played from `x{min}` to `x{max}` times, not `{count}`"))
 }
 
 /// Report every blank bar between a repeat end and a repeat start,
@@ -95,7 +178,7 @@ pub(super) fn report_split_repeats<'a>(
 ) {
     for (index, pair) in lines.windows(2).enumerate() {
         let blank = segments[index].text.trim_matches(is_separator).is_empty();
-        if pair == [BarLine::RepeatEnd, BarLine::RepeatStart] && blank {
+        if matches!(pair, [BarLine::RepeatEnd(_), BarLine::RepeatStart]) && blank {
             emitter.emit(Rich::custom(
                 SimpleSpan::from(written[index].span.start..written[index + 1].span.end),
                 "write `:||:` to end a repeat and start the next, not an empty bar between them",
